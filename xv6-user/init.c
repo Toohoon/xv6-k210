@@ -13,8 +13,10 @@ char *tests[] = {
       "getpid",
       "times",
       "uname",
+      "brk",
       //"shutdown",
   };
+int counts=sizeof(tests) / sizeof(tests[0]);
 int main(void)
 {
   int pid, wpid;
@@ -24,9 +26,9 @@ int main(void)
   dup(0); // stderr
   //shutdown();
   //printf("Working Test!!\n");
-  for (int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++)
+  for (int i = 0; i < counts ; i++)
   {
-    // printf("\ninit: starting %d\n", i);
+    printf("\ninit: starting %d\n", i);
     pid = fork();
     if (pid < 0)
     {
