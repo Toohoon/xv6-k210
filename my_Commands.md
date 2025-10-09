@@ -4,3 +4,5 @@ docker run -ti --rm -v ./testsuits-for-oskernel-main/riscv-syscalls-testing:/tes
 
 make my_set
 make run
+
+Test_git
