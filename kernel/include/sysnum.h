@@ -17,6 +17,7 @@
 #define SYS_sleep           13
 #define SYS_uptime          14
 #define SYS_open            56
+#define SYS_openat          56
 #define SYS_write           64
 #define SYS_remove          25
 #define SYS_trace           18

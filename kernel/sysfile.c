@@ -161,55 +161,152 @@ create(char *path, short type, int mode)
   return ep;
 }
 
+// uint64
+// sys_open(void)
+// {
+//   char path[FAT32_MAX_PATH];
+//   int fd, omode;
+//   struct file *f;
+//   struct dirent *ep;
+
+//   if (argstr(0, path, FAT32_MAX_PATH) < 0 || argint(1, &omode) < 0)
+//     return -1;
+
+//   if (omode & O_CREATE)
+//   {
+//     ep = create(path, T_FILE, omode);
+//     if (ep == NULL)
+//     {
+//       return -1;
+//     }
+//   }
+//   else
+//   {
+//     if ((ep = ename(path)) == NULL)
+//     {
+//       return -1;
+//     }
+//     elock(ep);
+//     if ((ep->attribute & ATTR_DIRECTORY) && omode != O_RDONLY)
+//     {
+//       eunlock(ep);
+//       eput(ep);
+//       return -1;
+//     }
+//   }
+
+//   if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0)
+//   {
+//     if (f)
+//     {
+//       fileclose(f);
+//     }
+//     eunlock(ep);
+//     eput(ep);
+//     return -1;
+//   }
+
+//   if (!(ep->attribute & ATTR_DIRECTORY) && (omode & O_TRUNC))
+//   {
+//     etrunc(ep);
+//   }
+
+//   f->type = FD_ENTRY;
+//   f->off = (omode & O_APPEND) ? ep->file_size : 0;
+//   f->ep = ep;
+//   f->readable = !(omode & O_WRONLY);
+//   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+
+//   eunlock(ep);
+
+//   return fd;
+// }
 uint64
 sys_open(void)
 {
   char path[FAT32_MAX_PATH];
   int fd, omode;
-  struct file *f;
-  struct dirent *ep;
+  struct file *f = 0;
+  struct dirent *ep = 0;
 
-  if(argstr(0, path, FAT32_MAX_PATH) < 0 || argint(1, &omode) < 0)
+  if (argstr(0, path, FAT32_MAX_PATH) < 0 || argint(1, &omode) < 0)
     return -1;
 
-  if(omode & O_CREATE){
+  // ===== 兼容性兜底：不同用户态/内核的 flag 数值可能不一致 =====
+#ifndef O_CREAT
+#define O_CREAT 0
+#endif
+#ifndef O_CREATE
+#define O_CREATE 0
+#endif
+#ifndef O_ANYCREATE
+#define O_ANYCREATE (O_CREATE | O_CREAT)
+#endif
+
+#ifndef O_ACCMODE
+#define O_ACCMODE  0x3
+#endif
+#ifndef O_RDONLY
+#define O_RDONLY   0x0
+#endif
+#ifndef O_WRONLY
+#define O_WRONLY   0x1
+#endif
+#ifndef O_RDWR
+#define O_RDWR     0x2
+#endif
+#ifndef O_TRUNC
+#define O_TRUNC    0x400
+#endif
+#ifndef O_APPEND
+#define O_APPEND   0x800
+#endif
+  // ===========================================================
+
+  // 创建或打开
+  if (omode & O_ANYCREATE) {
     ep = create(path, T_FILE, omode);
-    if(ep == NULL){
+    if (ep == NULL)
       return -1;
-    }
   } else {
-    if((ep = ename(path)) == NULL){
+    if ((ep = ename(path)) == NULL)
       return -1;
-    }
+
     elock(ep);
-    if((ep->attribute & ATTR_DIRECTORY) && omode != O_RDONLY){
+    // 目录不允许以写方式打开
+    if ((ep->attribute & ATTR_DIRECTORY) && ((omode & O_ACCMODE) != O_RDONLY)) {
       eunlock(ep);
       eput(ep);
       return -1;
     }
   }
 
-  if((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0){
-    if (f) {
-      fileclose(f);
-    }
+  // 分配 file/fd
+  if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
+    if (f) fileclose(f);
     eunlock(ep);
     eput(ep);
     return -1;
   }
 
-  if(!(ep->attribute & ATTR_DIRECTORY) && (omode & O_TRUNC)){
+  // 仅对普通文件处理截断
+  if (!(ep->attribute & ATTR_DIRECTORY) && (omode & O_TRUNC)) {
     etrunc(ep);
   }
 
+  // 初始化 file 结构
   f->type = FD_ENTRY;
-  f->off = (omode & O_APPEND) ? ep->file_size : 0;
   f->ep = ep;
-  f->readable = !(omode & O_WRONLY);
-  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+
+  // 访问权限
+  int acc = (omode & O_ACCMODE);
+  f->readable = (acc == O_RDONLY || acc == O_RDWR);
+  f->writable = (acc == O_WRONLY || acc == O_RDWR);
+
+  // 初始偏移（追加）
+  f->off = (omode & O_APPEND) ? ep->file_size : 0;
 
   eunlock(ep);
-
   return fd;
 }
 
@@ -502,10 +599,11 @@ sys_getcwd(void)
 
   return addr;
 }
+
 uint64
 sys_mmap(void)
 {
-  uint64 hint;      // 允许为 0(NULL)
+  uint64 hint;      // 允许为 0 (NULL)
   int len, prot, flags, fd, off;
 
   if (argaddr(0, &hint) < 0) return -1;
@@ -515,25 +613,23 @@ sys_mmap(void)
   if (argint(4, &fd)    < 0) return -1;
   if (argint(5, &off)   < 0) return -1;
 
-  // 仅允许这一类参数
+  // 简化语义：只接受 hint==0 且 off==0
   if (hint != 0) return -1;
   if (off != 0)  return -1;
 
-  // （可选）严格检查：必须可读写&共享&文件映射
-  // 你也可以直接忽略 flags/prot，这里给出硬限制更安全
-  // 用户态的常量由你自己在 user.h 定义，这里只做存在性检查即可
   struct proc *p = myproc();
 
   if (fd < 0 || fd >= NOFILE) return -1;
   struct file *f = p->ofile[fd];
   if (f == 0 || f->type != FD_ENTRY || f->ep == 0) return -1;
 
+  // 计算需要映射的长度：不超过文件大小
   uint64 fsize = (uint64)f->ep->file_size;
   uint64 want  = (uint64)len;
-  if (want > fsize) want = fsize;       // 不超过文件大小
+  if (want > fsize) want = fsize;
   if (want == 0) return -1;
 
-  // 向页对齐分配
+  // 从进程末尾页对齐分配
   uint64 oldsz   = p->sz;
   uint64 start   = PGROUNDUP(oldsz);
   uint64 map_len = PGROUNDUP(want);
@@ -542,78 +638,18 @@ sys_mmap(void)
     return -1;
   p->sz = start + map_len;
 
-  // 读文件 -> 用户地址（eread 的 user=1 表示 dst 是用户虚拟地址）
+  // 文件内容 -> 用户地址空间
   elock(f->ep);
-  int rd = eread(f->ep, 1 /*user*/, start, 0 /*off*/, (int)want);
+  int rd = eread(f->ep, /*user=*/1, start, /*off=*/0, (int)want);
   eunlock(f->ep);
   if (rd < 0) {
-    // 最简：失败不回滚 sz（也可以 uvmunmap 回滚）
+    // 这里最简单处理：读失败直接返回 -1（不做回滚）
+    // 如果你想严谨点，可在此处 uvmunmap 回滚到 oldsz
     return -1;
   }
 
-  // 未覆盖到的尾页部分天然是 0（kalloc 返回零页；没被 eread 写到就保持 0）
+  // 剩余尾页（如果 want 不是页整倍数）保持 0 即可
+  // 不记录 last_map_*，不做写回
 
-  // 为 munmap/exit 回写做记录（偷懒：只有“最后一次映射”）
-  filedup(f); // 增引用，直到 munmap/exit 才关闭
-  p->last_map_start = start;
-  p->last_map_len   = map_len;
-  p->last_map_file  = f;
-
-  return start; // 返回用户地址
+  return start; // 返回用户虚拟地址
 }
-
-// uint64 sys_mmap(void)
-// {
-//   uint64 addr;
-//   int len, prot, flags, fd, off;
-
-//   // 获取参数，若有错误则返回-1
-//   if (argaddr(0, &addr) < 0 ||
-//       argint(1, &len) < 0 || len <= 0 ||
-//       argint(2, &prot) < 0 ||
-//       argint(3, &flags) < 0 ||
-//       argint(4, &fd) < 0 ||
-//       argint(5, &off) < 0)
-//     return -1;
-
-//   struct proc *p = myproc();
-
-//   // 检查文件描述符合法性
-//   if (fd < 0 || fd >= NOFILE)
-//     return -1;
-//   struct file *f = p->ofile[fd];
-//   if (f == NULL || f->type != FD_ENTRY || f->ep == NULL)
-//     return -1;
-
-//   // 如果未指定地址，则自动分配在进程末尾
-//   if (addr == 0)
-//   {
-//     addr = PGROUNDUP(p->sz);
-//     uint64 new_sz = addr + len;
-//     if (uvmalloc(p->pagetable, p->kpagetable, p->sz, new_sz) == 0)
-//       return -1;
-//     p->sz = new_sz;
-//   }
-
-//   // 计算实际可映射的长度，防止越界
-//   int max_map = f->ep->file_size - off;
-//   int map_len = (len > max_map) ? max_map : len;
-//   if (map_len <= 0)
-//     return -1;
-
-//   // 加锁文件目录项，读取数据到映射区域
-//   elock(f->ep);
-//   int read_bytes = eread(f->ep, 1, addr, off, map_len);
-//   eunlock(f->ep);
-
-//   if (read_bytes < 0)
-//     return -1;
-
-//   // 若映射长度大于实际读取长度，补零
-//   if (read_bytes < len)
-//   {
-//     memset((void *)(addr + read_bytes), 0, len - read_bytes);
-//   }
-
-//   return addr;
-// }
