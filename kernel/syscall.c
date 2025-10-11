@@ -101,6 +101,7 @@ extern uint64 sys_getpid(void);
 extern uint64 sys_kill(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_open(void);
+extern uint64 sys_openat(void);
 extern uint64 sys_pipe(void);
 extern uint64 sys_read(void);
 extern uint64 sys_sbrk(void);
@@ -121,6 +122,7 @@ extern uint64 sys_stat_syscall(void);
 extern uint64 sys_times(void);
 extern uint64 sys_uname(void);
 extern uint64 sys_mmap(void);
+extern uint64 sys_munmap(void);
 
 static uint64 (*syscalls[])(void) = {
   [SYS_fork]        sys_fork,
@@ -138,6 +140,7 @@ static uint64 (*syscalls[])(void) = {
   [SYS_sleep]       sys_sleep,
   [SYS_uptime]      sys_uptime,
   [SYS_open]        sys_open,
+  [SYS_openat]      sys_openat,
   [SYS_write]       sys_write,
   [SYS_mkdir]       sys_mkdir,
   [SYS_close]       sys_close,
@@ -154,6 +157,7 @@ static uint64 (*syscalls[])(void) = {
   [SYS_times] sys_times,
   [SYS_uname] sys_uname,  
   [SYS_mmap]  sys_mmap,
+  [SYS_munmap] sys_munmap,
 };
 static int syscall_counts[NELEM(syscalls)];
 static char *sysnames[] = {
@@ -172,6 +176,7 @@ static char *sysnames[] = {
   [SYS_sleep]       "sleep",
   [SYS_uptime]      "uptime",
   [SYS_open]        "open",
+  [SYS_openat]      "openat",
   [SYS_write]       "write",
   [SYS_mkdir]       "mkdir",
   [SYS_close]       "close",
@@ -188,6 +193,7 @@ static char *sysnames[] = {
   [SYS_times] "times",
   [SYS_uname] "uname",
   [SYS_mmap]  "mmap",
+  [SYS_munmap] "munmap",
 };
 
 void

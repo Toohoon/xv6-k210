@@ -17,6 +17,8 @@ int close(int fd);
 int kill(int pid);
 int exec(char*, char**);
 int open(const char *filename, int mode);
+int openat(const char *filename, int mode);
+int fstat(int fd, struct stat*);
 int fstat(int fd, struct stat*);
 int mkdir(const char *dirname);
 int chdir(const char *dirname);

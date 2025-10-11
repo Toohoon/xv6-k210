@@ -34,4 +34,5 @@
 #define SYS_times           153
 #define SYS_uname           160
 #define SYS_mmap            222
+#define SYS_munmap          215
 #endif

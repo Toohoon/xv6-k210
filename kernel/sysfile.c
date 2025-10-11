@@ -92,7 +92,7 @@ sys_write(void)
   int n;
   uint64 p;
 
-  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
+  if (argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
     return -1;
 
   return filewrite(f, p, n);
@@ -110,6 +110,29 @@ sys_close(void)
   fileclose(f);
   return 0;
 }
+
+struct kstat
+{
+  uint64 st_dev;
+  uint64 st_ino;
+  unsigned int st_mode;
+  uint32 st_nlink;
+  uint32 st_uid;
+  uint32 st_gid;
+  uint64 st_rdev;
+  unsigned long __pad;
+  long int st_size;
+  uint32 st_blksize;
+  int __pad2;
+  uint64 st_blocks;
+  long st_atime_sec;
+  long st_atime_nsec;
+  long st_mtime_sec;
+  long st_mtime_nsec;
+  long st_ctime_sec;
+  long st_ctime_nsec;
+  unsigned __unused[2];
+};
 
 uint64
 sys_fstat(void)
@@ -161,155 +184,217 @@ create(char *path, short type, int mode)
   return ep;
 }
 
-// uint64
-// sys_open(void)
-// {
-//   char path[FAT32_MAX_PATH];
-//   int fd, omode;
-//   struct file *f;
-//   struct dirent *ep;
-
-//   if (argstr(0, path, FAT32_MAX_PATH) < 0 || argint(1, &omode) < 0)
-//     return -1;
-
-//   if (omode & O_CREATE)
-//   {
-//     ep = create(path, T_FILE, omode);
-//     if (ep == NULL)
-//     {
-//       return -1;
-//     }
-//   }
-//   else
-//   {
-//     if ((ep = ename(path)) == NULL)
-//     {
-//       return -1;
-//     }
-//     elock(ep);
-//     if ((ep->attribute & ATTR_DIRECTORY) && omode != O_RDONLY)
-//     {
-//       eunlock(ep);
-//       eput(ep);
-//       return -1;
-//     }
-//   }
-
-//   if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0)
-//   {
-//     if (f)
-//     {
-//       fileclose(f);
-//     }
-//     eunlock(ep);
-//     eput(ep);
-//     return -1;
-//   }
-
-//   if (!(ep->attribute & ATTR_DIRECTORY) && (omode & O_TRUNC))
-//   {
-//     etrunc(ep);
-//   }
-
-//   f->type = FD_ENTRY;
-//   f->off = (omode & O_APPEND) ? ep->file_size : 0;
-//   f->ep = ep;
-//   f->readable = !(omode & O_WRONLY);
-//   f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
-
-//   eunlock(ep);
-
-//   return fd;
-// }
 uint64
 sys_open(void)
 {
   char path[FAT32_MAX_PATH];
   int fd, omode;
-  struct file *f = 0;
-  struct dirent *ep = 0;
+  struct file *f;
+  struct dirent *ep;
 
   if (argstr(0, path, FAT32_MAX_PATH) < 0 || argint(1, &omode) < 0)
     return -1;
 
-  // ===== 兼容性兜底：不同用户态/内核的 flag 数值可能不一致 =====
-#ifndef O_CREAT
-#define O_CREAT 0
-#endif
-#ifndef O_CREATE
-#define O_CREATE 0
-#endif
-#ifndef O_ANYCREATE
-#define O_ANYCREATE (O_CREATE | O_CREAT)
-#endif
-
-#ifndef O_ACCMODE
-#define O_ACCMODE  0x3
-#endif
-#ifndef O_RDONLY
-#define O_RDONLY   0x0
-#endif
-#ifndef O_WRONLY
-#define O_WRONLY   0x1
-#endif
-#ifndef O_RDWR
-#define O_RDWR     0x2
-#endif
-#ifndef O_TRUNC
-#define O_TRUNC    0x400
-#endif
-#ifndef O_APPEND
-#define O_APPEND   0x800
-#endif
-  // ===========================================================
-
-  // 创建或打开
-  if (omode & O_ANYCREATE) {
+  if (omode & O_CREATE)
+  {
     ep = create(path, T_FILE, omode);
     if (ep == NULL)
+    {
       return -1;
-  } else {
+    }
+  }
+  else
+  {
     if ((ep = ename(path)) == NULL)
+    {
       return -1;
-
+    }
     elock(ep);
-    // 目录不允许以写方式打开
-    if ((ep->attribute & ATTR_DIRECTORY) && ((omode & O_ACCMODE) != O_RDONLY)) {
+    if ((ep->attribute & ATTR_DIRECTORY) && omode != O_RDONLY)
+    {
       eunlock(ep);
       eput(ep);
       return -1;
     }
   }
 
-  // 分配 file/fd
-  if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
-    if (f) fileclose(f);
+  if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0)
+  {
+    if (f)
+    {
+      fileclose(f);
+    }
     eunlock(ep);
     eput(ep);
     return -1;
   }
 
-  // 仅对普通文件处理截断
-  if (!(ep->attribute & ATTR_DIRECTORY) && (omode & O_TRUNC)) {
+  if (!(ep->attribute & ATTR_DIRECTORY) && (omode & O_TRUNC))
+  {
     etrunc(ep);
   }
 
-  // 初始化 file 结构
   f->type = FD_ENTRY;
-  f->ep = ep;
-
-  // 访问权限
-  int acc = (omode & O_ACCMODE);
-  f->readable = (acc == O_RDONLY || acc == O_RDWR);
-  f->writable = (acc == O_WRONLY || acc == O_RDWR);
-
-  // 初始偏移（追加）
   f->off = (omode & O_APPEND) ? ep->file_size : 0;
+  f->ep = ep;
+  f->readable = !(omode & O_WRONLY);
+  f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
 
   eunlock(ep);
+
   return fd;
 }
+static int get_abspath(struct dirent* de, char* path_buf, int buf_size) {
+  if (de == NULL || de->parent == NULL) {
+    if (buf_size < 2) {
+      return -1;
+    }
+    strncpy(path_buf, "/", buf_size);
+    return 0;
+  }
+  if (get_abspath(de->parent, path_buf, buf_size) < 0) {
+    return -1;
+  }
+  int parent_len = strlen(path_buf);
+  if (parent_len > 1) {
+    if (parent_len + 1 >= buf_size) {
+      return -1;
+    }
+    path_buf[parent_len++] = '/';
+    path_buf[parent_len] = '\0';
+  }
 
+  safestrcpy(path_buf + parent_len, de->filename, buf_size - parent_len);
+  return 0;
+}
+int get_path(char* path, int fd) {
+  if (path == NULL) {
+    return -1;
+  }
+  if (path[0] == '/') {
+    return 0;
+  }
+  if (path[0] == '.' && path[1] == '/') {
+    path += 2;
+  }
+  char base_path[FAT32_MAX_PATH];
+  struct dirent* base_de = NULL;
+  if (fd == AT_FDCWD) {
+    base_de = myproc()->cwd;
+  }
+  else {
+    if (fd < 0 || fd >= NOFILE) {
+      return -1;
+    }
+    struct file* f = myproc()->ofile[fd];
+    if (f == NULL || !(f->ep->attribute & ATTR_DIRECTORY)) {
+      return -1;
+    }
+    base_de = f->ep;
+  }
+  if (get_abspath(base_de, base_path, FAT32_MAX_PATH) < 0) {
+    return -1;
+  }
+  char final_path[FAT32_MAX_PATH];
+  safestrcpy(final_path, base_path, FAT32_MAX_PATH);
+  int base_len = strlen(final_path);
+  if (base_len > 1) {
+    if (base_len + 1 >= sizeof(final_path)) {
+      return -1;
+    }
+    final_path[base_len++] = '/';
+    final_path[base_len] = '\0';
+  }
+
+  safestrcpy(final_path + base_len, path, FAT32_MAX_PATH - base_len);
+  safestrcpy(path, final_path, FAT32_MAX_PATH);
+
+  return 0;
+}
+uint64
+sys_openat(void) {
+  char path[FAT32_MAX_PATH];
+  int dirfd, flags, mode, fd;
+  struct file* f;
+  struct dirent* ep;
+
+  if (
+    argint(0, &dirfd) < 0 ||
+    argstr(1, path, FAT32_MAX_PATH) < 0 ||
+    argint(2, &flags) < 0 ||
+    argint(3, &mode) < 0
+    ) {
+    return -1;
+  }
+
+  if (strlen(path) == 0) {
+    return -1;
+  }
+  if (get_path(path, dirfd) < 0) {
+    return -1;
+  }
+  if (flags & O_CREATE) {
+    ep = create(path, T_FILE, mode);
+    if (ep == NULL) {
+      return -1;
+    }
+  }
+  else {
+    if ((ep = ename(path)) == NULL) {
+      return -1;
+    }
+    elock(ep);
+    if ((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) {
+      eunlock(ep);
+      eput(ep);
+      return -1;
+    }
+  }
+
+  if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
+    if (f) {
+      fileclose(f);
+    }
+    eunlock(ep);
+    eput(ep);
+    return -1;
+  }
+
+  if (!(ep->attribute & ATTR_DIRECTORY) && (flags & O_TRUNC)) {
+    etrunc(ep);
+  }
+
+  f->type = FD_ENTRY;
+  f->off = (flags & O_APPEND) ? ep->file_size : 0;
+  f->ep = ep;
+  f->readable = !(flags & O_WRONLY);
+  f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
+
+  eunlock(ep);
+
+  return fd;
+}
+uint64 sys_munmap(void)
+{
+  uint64 addr;
+  int len;
+  if (argaddr(0, &addr) < 0 || argint(1, &len) < 0 || len <= 0)
+  {
+    return -1;
+  }
+  if (addr % PGSIZE != 0)
+  {
+    return -1;
+  }
+  struct proc *p = myproc();
+  int npages = len / PGSIZE;
+  if (addr + (uint64)len > p->sz)
+  {
+    return -1;
+  }
+  vmunmap(p->pagetable, addr, npages, 0);
+  return 0;
+}
 uint64
 sys_mkdir(void)
 {
