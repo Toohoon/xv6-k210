@@ -16,6 +16,8 @@ char *tests[] = {
       "brk",
       "mmap",
       "munmap",
+      "open",
+      "openat"
       //"shutdown",
   };
 int counts=sizeof(tests) / sizeof(tests[0]);

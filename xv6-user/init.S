@@ -111,9 +111,15 @@ main:
 	.align	3
 .LC11:
 	.string	"munmap"
-	.globl	argv
 	.align	3
 .LC12:
+	.string	"open"
+	.align	3
+.LC13:
+	.string	"openat"
+	.globl	argv
+	.align	3
+.LC14:
 	.string	"sh"
 	.data
 	.align	2
@@ -121,17 +127,17 @@ main:
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	8
+	.word	10
 	.section	.data.rel.local,"aw"
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
 	.size	argv, 16
 argv:
-	.dword	.LC12
+	.dword	.LC14
 	.dword	0
 	.type	tests, @object
-	.size	tests, 64
+	.size	tests, 80
 tests:
 	.dword	.LC4
 	.dword	.LC5
@@ -141,5 +147,7 @@ tests:
 	.dword	.LC9
 	.dword	.LC10
 	.dword	.LC11
+	.dword	.LC12
+	.dword	.LC13
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits
