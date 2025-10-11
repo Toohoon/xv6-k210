@@ -110,30 +110,6 @@ sys_close(void)
   fileclose(f);
   return 0;
 }
-
-struct kstat
-{
-  uint64 st_dev;
-  uint64 st_ino;
-  unsigned int st_mode;
-  uint32 st_nlink;
-  uint32 st_uid;
-  uint32 st_gid;
-  uint64 st_rdev;
-  unsigned long __pad;
-  long int st_size;
-  uint32 st_blksize;
-  int __pad2;
-  uint64 st_blocks;
-  long st_atime_sec;
-  long st_atime_nsec;
-  long st_mtime_sec;
-  long st_mtime_nsec;
-  long st_ctime_sec;
-  long st_ctime_nsec;
-  unsigned __unused[2];
-};
-
 uint64
 sys_fstat(void)
 {
@@ -188,11 +164,10 @@ uint64
 sys_open(void)
 {
   char path[FAT32_MAX_PATH];
-  int fd, omode;
-  struct file *f;
-  struct dirent *ep;
-
-  if (argstr(0, path, FAT32_MAX_PATH) < 0 || argint(1, &omode) < 0)
+  int flags, omode, fd;
+  struct file* f;
+  struct dirent* ep;
+  if (argstr(0, path, FAT32_MAX_PATH) < 0 || argint(1, &omode) < 0||argint(2, &flags) < 0 )
     return -1;
 
   if (omode & O_CREATE)
@@ -210,7 +185,8 @@ sys_open(void)
       return -1;
     }
     elock(ep);
-    if ((ep->attribute & ATTR_DIRECTORY) && omode != O_RDONLY)
+    //if ((ep->attribute & ATTR_DIRECTORY) && omode != O_RDONLY)
+    if((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) 
     {
       eunlock(ep);
       eput(ep);
@@ -243,157 +219,6 @@ sys_open(void)
   eunlock(ep);
 
   return fd;
-}
-static int get_abspath(struct dirent* de, char* path_buf, int buf_size) {
-  if (de == NULL || de->parent == NULL) {
-    if (buf_size < 2) {
-      return -1;
-    }
-    strncpy(path_buf, "/", buf_size);
-    return 0;
-  }
-  if (get_abspath(de->parent, path_buf, buf_size) < 0) {
-    return -1;
-  }
-  int parent_len = strlen(path_buf);
-  if (parent_len > 1) {
-    if (parent_len + 1 >= buf_size) {
-      return -1;
-    }
-    path_buf[parent_len++] = '/';
-    path_buf[parent_len] = '\0';
-  }
-
-  safestrcpy(path_buf + parent_len, de->filename, buf_size - parent_len);
-  return 0;
-}
-int get_path(char* path, int fd) {
-  if (path == NULL) {
-    return -1;
-  }
-  if (path[0] == '/') {
-    return 0;
-  }
-  if (path[0] == '.' && path[1] == '/') {
-    path += 2;
-  }
-  char base_path[FAT32_MAX_PATH];
-  struct dirent* base_de = NULL;
-  if (fd == AT_FDCWD) {
-    base_de = myproc()->cwd;
-  }
-  else {
-    if (fd < 0 || fd >= NOFILE) {
-      return -1;
-    }
-    struct file* f = myproc()->ofile[fd];
-    if (f == NULL || !(f->ep->attribute & ATTR_DIRECTORY)) {
-      return -1;
-    }
-    base_de = f->ep;
-  }
-  if (get_abspath(base_de, base_path, FAT32_MAX_PATH) < 0) {
-    return -1;
-  }
-  char final_path[FAT32_MAX_PATH];
-  safestrcpy(final_path, base_path, FAT32_MAX_PATH);
-  int base_len = strlen(final_path);
-  if (base_len > 1) {
-    if (base_len + 1 >= sizeof(final_path)) {
-      return -1;
-    }
-    final_path[base_len++] = '/';
-    final_path[base_len] = '\0';
-  }
-
-  safestrcpy(final_path + base_len, path, FAT32_MAX_PATH - base_len);
-  safestrcpy(path, final_path, FAT32_MAX_PATH);
-
-  return 0;
-}
-uint64
-sys_openat(void) {
-  char path[FAT32_MAX_PATH];
-  int dirfd, flags, mode, fd;
-  struct file* f;
-  struct dirent* ep;
-
-  if (
-    argint(0, &dirfd) < 0 ||
-    argstr(1, path, FAT32_MAX_PATH) < 0 ||
-    argint(2, &flags) < 0 ||
-    argint(3, &mode) < 0
-    ) {
-    return -1;
-  }
-
-  if (strlen(path) == 0) {
-    return -1;
-  }
-  if (get_path(path, dirfd) < 0) {
-    return -1;
-  }
-  if (flags & O_CREATE) {
-    ep = create(path, T_FILE, mode);
-    if (ep == NULL) {
-      return -1;
-    }
-  }
-  else {
-    if ((ep = ename(path)) == NULL) {
-      return -1;
-    }
-    elock(ep);
-    if ((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) {
-      eunlock(ep);
-      eput(ep);
-      return -1;
-    }
-  }
-
-  if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
-    if (f) {
-      fileclose(f);
-    }
-    eunlock(ep);
-    eput(ep);
-    return -1;
-  }
-
-  if (!(ep->attribute & ATTR_DIRECTORY) && (flags & O_TRUNC)) {
-    etrunc(ep);
-  }
-
-  f->type = FD_ENTRY;
-  f->off = (flags & O_APPEND) ? ep->file_size : 0;
-  f->ep = ep;
-  f->readable = !(flags & O_WRONLY);
-  f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
-
-  eunlock(ep);
-
-  return fd;
-}
-uint64 sys_munmap(void)
-{
-  uint64 addr;
-  int len;
-  if (argaddr(0, &addr) < 0 || argint(1, &len) < 0 || len <= 0)
-  {
-    return -1;
-  }
-  if (addr % PGSIZE != 0)
-  {
-    return -1;
-  }
-  struct proc *p = myproc();
-  int npages = len / PGSIZE;
-  if (addr + (uint64)len > p->sz)
-  {
-    return -1;
-  }
-  vmunmap(p->pagetable, addr, npages, 0);
-  return 0;
 }
 uint64
 sys_mkdir(void)
@@ -640,7 +465,6 @@ fail:
     eput(src);
   return -1;
 }
-// kernel/sysfile.c 或你现在放 sys_getcwd 的文件里
 uint64
 sys_getcwd(void)
 {
@@ -688,7 +512,7 @@ sys_getcwd(void)
 uint64
 sys_mmap(void)
 {
-  uint64 hint;      // 允许为 0 (NULL)
+  uint64 hint;     
   int len, prot, flags, fd, off;
 
   if (argaddr(0, &hint) < 0) return -1;
@@ -697,8 +521,6 @@ sys_mmap(void)
   if (argint(3, &flags) < 0) return -1;
   if (argint(4, &fd)    < 0) return -1;
   if (argint(5, &off)   < 0) return -1;
-
-  // 简化语义：只接受 hint==0 且 off==0
   if (hint != 0) return -1;
   if (off != 0)  return -1;
 
@@ -708,13 +530,11 @@ sys_mmap(void)
   struct file *f = p->ofile[fd];
   if (f == 0 || f->type != FD_ENTRY || f->ep == 0) return -1;
 
-  // 计算需要映射的长度：不超过文件大小
   uint64 fsize = (uint64)f->ep->file_size;
   uint64 want  = (uint64)len;
   if (want > fsize) want = fsize;
   if (want == 0) return -1;
 
-  // 从进程末尾页对齐分配
   uint64 oldsz   = p->sz;
   uint64 start   = PGROUNDUP(oldsz);
   uint64 map_len = PGROUNDUP(want);
@@ -723,18 +543,299 @@ sys_mmap(void)
     return -1;
   p->sz = start + map_len;
 
-  // 文件内容 -> 用户地址空间
   elock(f->ep);
-  int rd = eread(f->ep, /*user=*/1, start, /*off=*/0, (int)want);
+  int rd = eread(f->ep, 1, start, 0, (int)want);
   eunlock(f->ep);
   if (rd < 0) {
-    // 这里最简单处理：读失败直接返回 -1（不做回滚）
-    // 如果你想严谨点，可在此处 uvmunmap 回滚到 oldsz
+    return -1;
+  }
+  return start; 
+}
+uint64 
+sys_munmap(void)
+{
+  uint64 addr;
+  int len;
+  if (argaddr(0, &addr) < 0 || argint(1, &len) < 0 || len <= 0)
+  {
+    return -1;
+  }
+  if (addr % PGSIZE != 0)
+  {
+    return -1;
+  }
+  struct proc *p = myproc();
+  int npages = len / PGSIZE;
+  if (addr + (uint64)len > p->sz)
+  {
+    return -1;
+  }
+  vmunmap(p->pagetable, addr, npages, 0);
+  return 0;
+}
+// static int get_abspath(struct dirent* de, char* path_buf, int buf_size) {
+//   if (de == NULL || de->parent == NULL) {
+//     if (buf_size < 2) {
+//       return -1;
+//     }
+//     strncpy(path_buf, "/", buf_size);
+//     return 0;
+//   }
+//   if (get_abspath(de->parent, path_buf, buf_size) < 0) {
+//     return -1;
+//   }
+//   int parent_len = strlen(path_buf);
+//   if (parent_len > 1) {
+//     if (parent_len + 1 >= buf_size) {
+//       return -1;
+//     }
+//     path_buf[parent_len++] = '/';
+//     path_buf[parent_len] = '\0';
+//   }
+
+//   safestrcpy(path_buf + parent_len, de->filename, buf_size - parent_len);
+//   return 0;
+// }
+// int get_path(char* path, int fd) {
+//   if (path == NULL) {
+//     return -1;
+//   }
+//   if (path[0] == '/') {
+//     return 0;
+//   }
+//   if (path[0] == '.' && path[1] == '/') {
+//     path += 2;
+//   }
+//   char base_path[FAT32_MAX_PATH];
+//   struct dirent* base_de = NULL;
+//   if (fd == AT_FDCWD) {
+//     base_de = myproc()->cwd;
+//   }
+//   else {
+//     if (fd < 0 || fd >= NOFILE) {
+//       return -1;
+//     }
+//     struct file* f = myproc()->ofile[fd];
+//     if (f == NULL || !(f->ep->attribute & ATTR_DIRECTORY)) {
+//       return -1;
+//     }
+//     base_de = f->ep;
+//   }
+//   if (get_abspath(base_de, base_path, FAT32_MAX_PATH) < 0) {
+//     return -1;
+//   }
+//   char final_path[FAT32_MAX_PATH];
+//   safestrcpy(final_path, base_path, FAT32_MAX_PATH);
+//   int base_len = strlen(final_path);
+//   if (base_len > 1) {
+//     if (base_len + 1 >= sizeof(final_path)) {
+//       return -1;
+//     }
+//     final_path[base_len++] = '/';
+//     final_path[base_len] = '\0';
+//   }
+
+//   safestrcpy(final_path + base_len, path, FAT32_MAX_PATH - base_len);
+//   safestrcpy(path, final_path, FAT32_MAX_PATH);
+
+//   return 0;
+// }
+// uint64
+// sys_openat(void) {
+//   char path[FAT32_MAX_PATH];
+//   int dirfd, flags, mode, fd;
+//   struct file* f;
+//   struct dirent* ep;
+
+//   if (
+//     argint(0, &dirfd) < 0 ||
+//     argstr(1, path, FAT32_MAX_PATH) < 0 ||
+//     argint(2, &flags) < 0 ||
+//     argint(3, &mode) < 0
+//     ) {
+//     return -1;
+//   }
+
+//   if (strlen(path) == 0) {
+//     return -1;
+//   }
+//   if (get_path(path, dirfd) < 0) {
+//     return -1;
+//   }
+//   if (flags & O_CREATE) {
+//     ep = create(path, T_FILE, mode);
+//     if (ep == NULL) {
+//       return -1;
+//     }
+//   }
+//   else {
+//     if ((ep = ename(path)) == NULL) {
+//       return -1;
+//     }
+//     elock(ep);
+//     if ((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) {
+//       eunlock(ep);
+//       eput(ep);
+//       return -1;
+//     }
+//   }
+
+//   if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
+//     if (f) {
+//       fileclose(f);
+//     }
+//     eunlock(ep);
+//     eput(ep);
+//     return -1;
+//   }
+
+//   if (!(ep->attribute & ATTR_DIRECTORY) && (flags & O_TRUNC)) {
+//     etrunc(ep);
+//   }
+
+//   f->type = FD_ENTRY;
+//   f->off = (flags & O_APPEND) ? ep->file_size : 0;
+//   f->ep = ep;
+//   f->readable = !(flags & O_WRONLY);
+//   f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
+
+//   eunlock(ep);
+
+//   return fd;
+// }
+
+// 1) 안전한 절대경로 구축: 길이 체크 강화
+static int get_abspath(struct dirent* de, char* buf, int bufsz) {
+  if (de == NULL) return -1;               // de==NULL은 에러로 간주
+  if (de->parent == NULL) {                // 루트
+    if (bufsz < 2) return -1;
+    buf[0] = '/'; buf[1] = '\0';
+    return 0;
+  }
+
+  if (get_abspath(de->parent, buf, bufsz) < 0) return -1;
+
+  int plen = strlen(buf);
+  // 필요하면 슬래시 추가
+  if (plen == 1 && buf[0] == '/') {
+    // "/name"
+  } else {
+    if (plen + 1 >= bufsz) return -1;
+    buf[plen++] = '/';
+    buf[plen] = '\0';
+  }
+
+  int nlen = strlen(de->filename);
+  if (plen + nlen + 1 > bufsz) return -1;  // +1 for '\0'
+  memmove(buf + plen, de->filename, nlen + 1);
+  return 0;
+}
+
+// 2) 입력 포인터를 절대 이동시키지 않기
+static int get_path(char* out_path, int dirfd) {
+  if (out_path == NULL) return -1;
+
+  // 절대경로면 그대로
+  if (out_path[0] == '/') return 0;
+
+  const char* rel = out_path;
+  if (rel[0] == '.' && rel[1] == '/')
+    rel += 2;  // 로컬 포인터만 이동 (out_path는 건들지 않음)
+
+  struct dirent* base_de = NULL;
+  if (dirfd == AT_FDCWD) {
+    base_de = myproc()->cwd;
+  } else {
+    if (dirfd < 0 || dirfd >= NOFILE) return -1;
+    struct file* f = myproc()->ofile[dirfd];
+    if (f == NULL || f->ep == NULL) return -1;
+    if (!(f->ep->attribute & ATTR_DIRECTORY)) return -1;
+    base_de = f->ep;
+  }
+
+  char base[FAT32_MAX_PATH];
+  if (get_abspath(base_de, base, FAT32_MAX_PATH) < 0) return -1;
+
+  // 길이 확인 후 결합
+  int blen = strlen(base);
+  int rlen = strlen(rel);
+  int need = blen + (blen > 1 ? 1 : 0) + rlen + 1; // '/' + rel + '\0'
+  if (need > FAT32_MAX_PATH) return -1;
+
+  char final[FAT32_MAX_PATH];
+  safestrcpy(final, base, FAT32_MAX_PATH);
+  if (blen > 1) {
+    final[blen++] = '/';
+    final[blen] = '\0';
+  }
+  safestrcpy(final + blen, rel, FAT32_MAX_PATH - blen);
+
+  // out_path의 원래 시작주소에 결과 복사
+  safestrcpy(out_path, final, FAT32_MAX_PATH);
+  return 0;
+}
+
+uint64
+sys_openat(void) {
+  char path[FAT32_MAX_PATH];
+  int dirfd, flags, mode, fd;
+  struct file* f = NULL;
+  struct dirent* ep = NULL;
+
+  if (argint(0, &dirfd) < 0 ||
+      argstr(1, path, FAT32_MAX_PATH) < 0 ||
+      argint(2, &flags) < 0 ||
+      argint(3, &mode) < 0) {
     return -1;
   }
 
-  // 剩余尾页（如果 want 不是页整倍数）保持 0 即可
-  // 不记录 last_map_*，不做写回
+  if (path[0] == '\0') return -1;
+  if (get_path(path, dirfd) < 0) return -1;
 
-  return start; // 返回用户虚拟地址
+  if (flags & O_CREATE) {
+    // 선택: O_EXCL 지원시, 존재하면 실패 처리
+    // if (flags & O_EXCL) { if (ename(path) != NULL) return -1; }
+    ep = create(path, T_FILE, mode);
+    if (ep == NULL) return -1; // create는 ep를 락 잡은 상태로 반환한다고 가정
+  } else {
+    ep = ename(path);
+    if (ep == NULL) return -1;
+    elock(ep);
+    if ((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) {
+      eunlock(ep);
+      eput(ep);
+      return -1;
+    }
+  }
+
+  // 파일/FD 확보
+  f = filealloc();
+  if (f == NULL) {
+    eunlock(ep);
+    eput(ep);
+    return -1;
+  }
+  fd = fdalloc(f);
+  if (fd < 0) {
+    fileclose(f);
+    eunlock(ep);
+    eput(ep);
+    return -1;
+  }
+
+  // O_TRUNC는 쓰기 모드일 때만
+  if (!(ep->attribute & ATTR_DIRECTORY) &&
+      (flags & O_TRUNC) &&
+      (flags & (O_WRONLY | O_RDWR))) {
+    etrunc(ep);
+  }
+
+  f->type = FD_ENTRY;
+  f->ep = ep;
+  f->off = (flags & O_APPEND) ? ep->file_size : 0;
+  f->readable = !(flags & O_WRONLY);
+  f->writable = (flags & (O_WRONLY | O_RDWR)) != 0;
+
+  eunlock(ep);
+  return fd;
 }
