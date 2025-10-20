@@ -774,68 +774,155 @@ static int get_path(char* out_path, int dirfd) {
   safestrcpy(out_path, final, FAT32_MAX_PATH);
   return 0;
 }
-
-uint64
-sys_openat(void) {
+uint64 sys_openat(void)
+{
+  int fd;
   char path[FAT32_MAX_PATH];
-  int dirfd, flags, mode, fd;
-  struct file* f = NULL;
-  struct dirent* ep = NULL;
+  int flags;
+  int mode;
+  struct dirent *ep;
+  struct file *f;
+  if (argint(0, &fd) < 0 || argstr(1, path, FAT32_MAX_PATH) < 0 || argint(2, &flags) < 0 || argint(3, &mode) < 0)
+    return -1;
+  if (*path == '\0')
+    return -1;
 
-  if (argint(0, &dirfd) < 0 ||
-      argstr(1, path, FAT32_MAX_PATH) < 0 ||
-      argint(2, &flags) < 0 ||
-      argint(3, &mode) < 0) {
+  if (get_path(path, fd) < 0)
+  {
+    printf("error in openat\n");
     return -1;
   }
 
-  if (path[0] == '\0') return -1;
-  if (get_path(path, dirfd) < 0) return -1;
-
-  if (flags & O_CREATE) {
-    // 선택: O_EXCL 지원시, 존재하면 실패 처리
-    // if (flags & O_EXCL) { if (ename(path) != NULL) return -1; }
-    ep = create(path, T_FILE, mode);
-    if (ep == NULL) return -1; // create는 ep를 락 잡은 상태로 반환한다고 가정
-  } else {
-    ep = ename(path);
-    if (ep == NULL) return -1;
+  int new_fd;
+  if (flags & O_CREATE)
+  {
+    ep = create(path, T_FILE, flags);
+    if (ep == NULL)
+    {
+      printf("creat null: %d\n", flags);
+      return -1;
+    }
+  }
+  else
+  {
+    if ((ep = ename(path)) == NULL)
+    {
+      return -1;
+    }
     elock(ep);
-    if ((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) {
+    if ((ep->attribute & ATTR_DIRECTORY) && (flags & O_WRONLY))
+    {
       eunlock(ep);
       eput(ep);
+      printf("show O_DIRECTORY: %d \n", flags);
+      printf("abs_path=%s\n", path);
       return -1;
     }
   }
 
-  // 파일/FD 확보
-  f = filealloc();
-  if (f == NULL) {
+  if ((f = filealloc()) == NULL || (new_fd = fdalloc(f)) < 0)
+  {
+    if (f)
+    {
+      fileclose(f);
+    }
     eunlock(ep);
     eput(ep);
-    return -1;
-  }
-  fd = fdalloc(f);
-  if (fd < 0) {
-    fileclose(f);
-    eunlock(ep);
-    eput(ep);
+    printf("unable to open: %d\n", flags);
     return -1;
   }
 
-  // O_TRUNC는 쓰기 모드일 때만
-  if (!(ep->attribute & ATTR_DIRECTORY) &&
-      (flags & O_TRUNC) &&
-      (flags & (O_WRONLY | O_RDWR))) {
+  if (!(ep->attribute & ATTR_DIRECTORY) && (flags & O_TRUNC))
+  {
     etrunc(ep);
   }
 
   f->type = FD_ENTRY;
-  f->ep = ep;
   f->off = (flags & O_APPEND) ? ep->file_size : 0;
+  f->ep = ep;
   f->readable = !(flags & O_WRONLY);
-  f->writable = (flags & (O_WRONLY | O_RDWR)) != 0;
+  f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
 
   eunlock(ep);
-  return fd;
+
+  return new_fd;
+}
+// uint64
+// sys_openat(void) {
+//   char path[FAT32_MAX_PATH];
+//   int dirfd, flags, mode, fd;
+//   struct file* f = NULL;
+//   struct dirent* ep = NULL;
+
+//   if (argint(0, &dirfd) < 0 ||
+//       argstr(1, path, FAT32_MAX_PATH) < 0 ||
+//       argint(2, &flags) < 0 ||
+//       argint(3, &mode) < 0) {
+//     return -1;
+//   }
+
+//   if (path[0] == '\0') return -1;
+//   if (get_path(path, dirfd) < 0) return -1;
+
+//   if (flags & O_CREATE) {
+//     // 선택: O_EXCL 지원시, 존재하면 실패 처리
+//     // if (flags & O_EXCL) { if (ename(path) != NULL) return -1; }
+//     ep = create(path, T_FILE, mode);
+//     if (ep == NULL) return -1; // create는 ep를 락 잡은 상태로 반환한다고 가정
+//   } else {
+//     ep = ename(path);
+//     if (ep == NULL) return -1;
+//     elock(ep);
+//     if ((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) {
+//       eunlock(ep);
+//       eput(ep);
+//       return -1;
+//     }
+//   }
+
+//   // 파일/FD 확보
+//   f = filealloc();
+//   if (f == NULL) {
+//     eunlock(ep);
+//     eput(ep);
+//     return -1;
+//   }
+//   fd = fdalloc(f);
+//   if (fd < 0) {
+//     fileclose(f);
+//     eunlock(ep);
+//     eput(ep);
+//     return -1;
+//   }
+
+//   // O_TRUNC는 쓰기 모드일 때만
+//   if (!(ep->attribute & ATTR_DIRECTORY) &&
+//       (flags & O_TRUNC) &&
+//       (flags & (O_WRONLY | O_RDWR))) {
+//     etrunc(ep);
+//   }
+
+//   f->type = FD_ENTRY;
+//   f->ep = ep;
+//   f->off = (flags & O_APPEND) ? ep->file_size : 0;
+//   f->readable = !(flags & O_WRONLY);
+//   f->writable = (flags & (O_WRONLY | O_RDWR)) != 0;
+
+//   eunlock(ep);
+//   return fd;
+// }
+uint64 
+sys_gettimeofday(void)
+{
+  uint64 time;
+  uint64 addr;
+  if (argaddr(0, &addr) < 0)
+    return -1;
+  if ((time = r_time()) < 0)
+    return -1;
+  uint64 sec = time / 10000000;      
+  uint64 usec = (time / 10) % 1000000; 
+  *(uint64 *)addr = sec;
+  *((uint64 *)addr + 1) = usec;
+  return 0;
 }

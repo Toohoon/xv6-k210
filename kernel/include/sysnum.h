@@ -35,4 +35,5 @@
 #define SYS_uname           160
 #define SYS_mmap            222
 #define SYS_munmap          215
+#define SYS_gettimeofday    169
 #endif
