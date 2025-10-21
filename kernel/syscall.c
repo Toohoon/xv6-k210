@@ -124,6 +124,10 @@ extern uint64 sys_uname(void);
 extern uint64 sys_mmap(void);
 extern uint64 sys_munmap(void);
 extern uint64 sys_gettimeofday(void);
+extern uint64 sys_nanosleep(void);
+extern uint64 sys_clone(void);
+//extern uint64 sys_wait4(void); 
+
 
 static uint64 (*syscalls[])(void) = {
   [SYS_fork]        sys_fork,
@@ -160,6 +164,9 @@ static uint64 (*syscalls[])(void) = {
   [SYS_mmap]  sys_mmap,
   [SYS_munmap] sys_munmap,
   [SYS_gettimeofday] sys_gettimeofday,
+  [SYS_nanosleep] sys_nanosleep,
+  [SYS_clone] sys_clone,
+  //[SYS_wait4] sys_wait4,
 };
 static int syscall_counts[NELEM(syscalls)];
 static char *sysnames[] = {
@@ -197,6 +204,9 @@ static char *sysnames[] = {
   [SYS_mmap]  "mmap",
   [SYS_munmap] "munmap",
   [SYS_gettimeofday] "sys_gettimeofday",
+  [SYS_nanosleep] "nanosleep",
+  [SYS_clone] "clone",
+  //[SYS_wait4] "wait4",
 };
 
 void

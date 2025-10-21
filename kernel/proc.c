@@ -13,6 +13,7 @@
 #include "include/file.h"
 #include "include/trap.h"
 #include "include/vm.h"
+#include "include/syscall.h"
 
 
 struct cpu cpus[NCPU];
@@ -472,8 +473,8 @@ exit(int status)
   panic("zombie exit");
 }
 
-// Wait for a child process to exit and return its pid.
-// Return -1 if this process has no children.
+//Wait for a child process to exit and return its pid.
+//Return -1 if this process has no children.
 int
 wait(uint64 addr)
 {
@@ -524,6 +525,81 @@ wait(uint64 addr)
     sleep(p, &p->lock);  //DOC: wait-sleep
   }
 }
+
+int
+wait4(int wpid, uint64 addr)
+{
+  struct proc *np;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  // 只允许 -1 或者 >0；其他值直接报错
+  if (wpid != -1 && wpid <= 0) {
+    return -1;
+  }
+
+  // 持有 p->lock 全程，避免子进程 exit() 的唤醒丢失
+  acquire(&p->lock);
+
+  for(;;){
+    havekids = 0;
+    // 是否在本轮扫描中“看见”了目标子进程
+    // 若 wpid==-1（任意子进程），无需特判目标，置为 1 以跳过“不存在目标”的报错分支
+    int saw_target = (wpid == -1) ? 1 : 0;
+
+    // 扫描进程表，查找子进程
+    for(np = proc; np < &proc[NPROC]; np++){
+      if(np->parent == p){
+        havekids = 1;
+
+        // 如果指定了 wpid，但当前不是目标 pid，则跳过
+        if (wpid > 0 && np->pid != wpid) {
+          continue;
+        }
+        // 走到这里说明：要么 wpid==-1（任意），要么 np->pid==wpid（目标）
+        saw_target = 1;
+
+        // 这里不能先拿 np->lock 再找 parent，否则会破坏锁顺序导致死锁
+        acquire(&np->lock);
+        if(np->state == ZOMBIE){
+          // 找到已退出的子进程
+          pid = np->pid;
+
+          // POSIX 语义：高 8 位放退出码，低 8 位放信号；xv6 的 xstate 是退出码
+          int status = np->xstate << 8;
+
+          if(addr != 0 && copyout2(addr, (char*)&status, sizeof(status)) < 0) {
+            release(&np->lock);
+            release(&p->lock);
+            return -1;
+          }
+
+          freeproc(np);
+          release(&np->lock);
+          release(&p->lock);
+          return pid;
+        }
+        release(&np->lock);
+      }
+    }
+
+    // 如果在等待特定 wpid，但压根没有这个子进程，按 POSIX 语义返回 -1（ECHILD）
+    if (wpid > 0 && !saw_target) {
+      release(&p->lock);
+      return -1;
+    }
+
+    // 没有任何子进程可等，或者当前进程被杀，则返回 -1
+    if(!havekids || p->killed){
+      release(&p->lock);
+      return -1;
+    }
+
+    // 进入睡眠等待子进程退出
+    sleep(p, &p->lock);  // DOC: wait-sleep
+  }
+}
+
 
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -797,4 +873,62 @@ procnum(void)
 
   return num;
 }
+// kernel/proc.c
 
+int
+clone(void)
+{
+  int i, pid;
+  struct proc *np;
+  struct proc *p = myproc();
+  uint64 stack;
+
+  // Allocate process.
+  if((np = allocproc()) == NULL){
+    return -1;
+  }
+
+  // Copy user memory from parent to child.
+  if(uvmcopy(p->pagetable, np->pagetable, np->kpagetable, p->sz) < 0){
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+  np->sz = p->sz;
+
+  np->parent = p;
+
+  // copy tracing mask from parent.
+  np->tmask = p->tmask;
+
+  // copy saved user registers.
+  *(np->trapframe) = *(p->trapframe);
+
+  argaddr(1, &stack); 
+  if (stack != NULL) {
+    uint64 fn = *((uint64 *)((char *)(p->trapframe->a1)));
+    uint64 arg = *((uint64 *)((char *)(p->trapframe->a1) + 8));
+    np->trapframe->sp = stack;
+    np->trapframe->epc = fn;
+    np->trapframe->a1 = arg;
+  }
+
+  // Cause fork to return 0 in the child.
+  np->trapframe->a0 = 0;
+
+  // increment reference counts on open file descriptors.
+  for(i = 0; i < NOFILE; i++)
+    if(p->ofile[i])
+      np->ofile[i] = filedup(p->ofile[i]);
+  np->cwd = edup(p->cwd);
+
+  safestrcpy(np->name, p->name, sizeof(p->name));
+
+  pid = np->pid;
+
+  np->state = RUNNABLE;
+
+  release(&np->lock);
+
+  return pid;
+}

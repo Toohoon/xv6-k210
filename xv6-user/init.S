@@ -114,9 +114,15 @@ main:
 	.align	3
 .LC12:
 	.string	"gettimeofday"
-	.globl	argv
 	.align	3
 .LC13:
+	.string	"sleep"
+	.align	3
+.LC14:
+	.string	"clone"
+	.globl	argv
+	.align	3
+.LC15:
 	.string	"sh"
 	.data
 	.align	2
@@ -124,17 +130,17 @@ main:
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	9
+	.word	11
 	.section	.data.rel.local,"aw"
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
 	.size	argv, 16
 argv:
-	.dword	.LC13
+	.dword	.LC15
 	.dword	0
 	.type	tests, @object
-	.size	tests, 72
+	.size	tests, 88
 tests:
 	.dword	.LC4
 	.dword	.LC5
@@ -145,5 +151,7 @@ tests:
 	.dword	.LC10
 	.dword	.LC11
 	.dword	.LC12
+	.dword	.LC13
+	.dword	.LC14
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits

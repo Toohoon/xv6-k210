@@ -19,7 +19,10 @@ char *tests[] = {
       //"open",
       //"openat"
       //"fork"
-      "gettimeofday"
+      "gettimeofday",
+      "sleep",
+      "clone",
+      //"wait",
       //"shutdown",
   };
 int counts=sizeof(tests) / sizeof(tests[0]);

@@ -196,3 +196,38 @@ sys_times(void)
   release(&tickslock);
   return now;
 }
+
+uint64 
+sys_nanosleep(void)
+{
+  uint64 addr;
+  // Get the user address where the sleep interval is stored
+  if (argaddr(0, &addr) < 0)
+    return -1;
+  // Read the sleep interval from user memory
+  uint64 sec = *(uint64 *)addr;
+  uint64 usec = *((uint64 *)addr + 1);
+  // Convert the interval to kernel ticks (each tick = 50ms, so 20 ticks = 1s)
+  uint64 n = (sec * 20 + usec / 50000000);
+  uint64 ticks0;
+  acquire(&tickslock);
+  ticks0 = ticks;
+  // Sleep until the required number of ticks has passed
+  while (ticks - ticks0 < n)
+  {
+    // If the process is killed, abort the sleep
+    if (myproc()->killed)
+    {
+      release(&tickslock);
+      return -1;
+    }
+    sleep(&ticks, &tickslock);
+  }
+  release(&tickslock);
+  return 0;
+}
+uint64 
+sys_clone(void)
+{
+  return clone();
+}
