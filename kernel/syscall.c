@@ -126,6 +126,7 @@ extern uint64 sys_gettimeofday(void);
 extern uint64 sys_nanosleep(void);
 extern uint64 sys_clone(void);
 extern uint64 sys_waitpid(void); 
+extern uint64 sys_getppid(void);
 
 
 static uint64 (*syscalls[])(void) = {
@@ -166,6 +167,7 @@ static uint64 (*syscalls[])(void) = {
   [SYS_nanosleep] sys_nanosleep,
   [SYS_clone] sys_clone,
   [SYS_waitpid] sys_waitpid,
+  [SYS_getppid] sys_getppid,
 };
 static int syscall_counts[NELEM(syscalls)];
 static char *sysnames[] = {
@@ -206,6 +208,7 @@ static char *sysnames[] = {
   [SYS_nanosleep] "nanosleep",
   [SYS_clone] "clone",
   [SYS_waitpid] "waitpid",
+  [SYS_getppid] "getppid",
 };
 
 void

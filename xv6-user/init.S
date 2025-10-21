@@ -104,13 +104,13 @@ main:
 	.string	"fork"
 	.align	3
 .LC9:
-	.string	"fstat"
-	.align	3
-.LC10:
 	.string	"getcwd"
 	.align	3
-.LC11:
+.LC10:
 	.string	"getpid"
+	.align	3
+.LC11:
+	.string	"getppid"
 	.align	3
 .LC12:
 	.string	"gettimeofday"
@@ -122,25 +122,25 @@ main:
 	.string	"munmap"
 	.align	3
 .LC15:
-	.string	"open"
-	.align	3
-.LC16:
-	.string	"openat"
-	.align	3
-.LC17:
 	.string	"sleep"
 	.align	3
-.LC18:
+.LC16:
 	.string	"times"
 	.align	3
-.LC19:
+.LC17:
 	.string	"uname"
 	.align	3
-.LC20:
+.LC18:
 	.string	"wait"
 	.align	3
-.LC21:
+.LC19:
 	.string	"waitpid"
+	.align	3
+.LC20:
+	.string	"write"
+	.align	3
+.LC21:
+	.string	"yield"
 	.globl	argv
 	.align	3
 .LC22:
