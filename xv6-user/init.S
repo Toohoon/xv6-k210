@@ -89,40 +89,61 @@ main:
 	.section	.rodata.str1.8
 	.align	3
 .LC4:
-	.string	"getcwd"
-	.align	3
-.LC5:
-	.string	"write"
-	.align	3
-.LC6:
-	.string	"getpid"
-	.align	3
-.LC7:
-	.string	"times"
-	.align	3
-.LC8:
-	.string	"uname"
-	.align	3
-.LC9:
 	.string	"brk"
 	.align	3
+.LC5:
+	.string	"clone"
+	.align	3
+.LC6:
+	.string	"execve"
+	.align	3
+.LC7:
+	.string	"exit"
+	.align	3
+.LC8:
+	.string	"fork"
+	.align	3
+.LC9:
+	.string	"fstat"
+	.align	3
 .LC10:
-	.string	"mmap"
+	.string	"getcwd"
 	.align	3
 .LC11:
-	.string	"munmap"
+	.string	"getpid"
 	.align	3
 .LC12:
 	.string	"gettimeofday"
 	.align	3
 .LC13:
-	.string	"sleep"
+	.string	"mmap"
 	.align	3
 .LC14:
-	.string	"clone"
-	.globl	argv
+	.string	"munmap"
 	.align	3
 .LC15:
+	.string	"open"
+	.align	3
+.LC16:
+	.string	"openat"
+	.align	3
+.LC17:
+	.string	"sleep"
+	.align	3
+.LC18:
+	.string	"times"
+	.align	3
+.LC19:
+	.string	"uname"
+	.align	3
+.LC20:
+	.string	"wait"
+	.align	3
+.LC21:
+	.string	"waitpid"
+	.globl	argv
+	.align	3
+.LC22:
 	.string	"sh"
 	.data
 	.align	2
@@ -130,17 +151,17 @@ main:
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	11
+	.word	18
 	.section	.data.rel.local,"aw"
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
 	.size	argv, 16
 argv:
-	.dword	.LC15
+	.dword	.LC22
 	.dword	0
 	.type	tests, @object
-	.size	tests, 88
+	.size	tests, 144
 tests:
 	.dword	.LC4
 	.dword	.LC5
@@ -153,5 +174,12 @@ tests:
 	.dword	.LC12
 	.dword	.LC13
 	.dword	.LC14
+	.dword	.LC15
+	.dword	.LC16
+	.dword	.LC17
+	.dword	.LC18
+	.dword	.LC19
+	.dword	.LC20
+	.dword	.LC21
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits

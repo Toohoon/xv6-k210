@@ -4,11 +4,11 @@
 // System call numbers
 #define SYS_fork            1
 #define SYS_exit            93
-#define SYS_wait            260
+#define SYS_wait            124
 #define SYS_pipe            4
 #define SYS_read            63
 #define SYS_kill            6
-#define SYS_exec            7
+#define SYS_exec            221
 #define SYS_fstat           80
 #define SYS_chdir           9
 #define SYS_dup             10
@@ -38,5 +38,5 @@
 #define SYS_gettimeofday    169
 #define SYS_nanosleep       101
 #define SYS_clone           220
-//#define SYS_wait4           260
+#define SYS_waitpid         260
 #endif

@@ -90,8 +90,10 @@ void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(
-                //int wpid,
-                uint64 addr);
+                int wpid,
+                uint64 addr
+                //, int options
+                );
 int             wait4(int wpid,uint64 addr);
 void            wakeup(void*);
 void            yield(void);

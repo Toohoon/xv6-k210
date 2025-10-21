@@ -1,4 +1,3 @@
-
 #include "include/types.h"
 #include "include/riscv.h"
 #include "include/param.h"
@@ -10,9 +9,8 @@
 #include "include/kalloc.h"
 #include "include/string.h"
 #include "include/printf.h"
+#include "include/vm.h"
 #include "include/sbi.h"
-#include "include/spinlock.h"
-#include "include/defs.h"
 
 
 extern int exec(char *path, char **argv);
@@ -79,15 +77,6 @@ uint64
 sys_fork(void)
 {
   return fork();
-}
-
-uint64
-sys_wait(void)
-{
-  uint64 p;
-  if(argaddr(0, &p) < 0)
-    return -1;
-  return wait(p);
 }
 
 uint64
@@ -170,33 +159,6 @@ sys_shutdown(void) {
     sbi_shutdown();
     return 0;
 }
-
-struct tms {
-  uint64 tms_utime;   // user time in ticks
-  uint64 tms_stime;   // sys  time in ticks
-  uint64 tms_cutime;  // waited children user time
-  uint64 tms_cstime;  // waited children sys  time
-};
-extern struct spinlock tickslock;
-extern uint ticks;
-uint64
-sys_times(void)
-{
-  uint64 uaddr;
-  if (argaddr(0, &uaddr) < 0) return (uint64)-1;
-
-  struct tms ktms = {0,0,0,0};
-
-  struct proc *p = myproc();  
-  if (copyout(p->pagetable, uaddr, (char*)&ktms, sizeof(ktms)) < 0)
-    return (uint64)-1;
-
-  acquire(&tickslock);
-  uint64 now = ticks;
-  release(&tickslock);
-  return now;
-}
-
 uint64 
 sys_nanosleep(void)
 {
@@ -230,4 +192,29 @@ uint64
 sys_clone(void)
 {
   return clone();
+}
+
+uint64
+sys_wait(void)
+{
+  uint64 p;
+  if (argaddr(0, &p) < 0)
+    return -1;
+  return wait(-1, p
+  //, 0
+  );
+}
+
+uint64 sys_waitpid(void)
+{
+  uint64 p;
+  int pid, options;
+  // Fetch syscall arguments: pid, status address, and options
+  if (argint(0, &pid) < 0 || argaddr(1, &p) < 0 || argint(2, &options))
+    return -1;
+
+  // Call the kernel wait function with the provided arguments
+  return wait(pid, p
+  //  , options
+  );
 }

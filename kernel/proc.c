@@ -475,33 +475,91 @@ exit(int status)
 
 //Wait for a child process to exit and return its pid.
 //Return -1 if this process has no children.
-int
-wait(uint64 addr)
+// int
+// wait(uint64 addr)
+// {
+//   struct proc *np;
+//   int havekids, pid;
+//   struct proc *p = myproc();
+
+//   // hold p->lock for the whole time to avoid lost
+//   // wakeups from a child's exit().
+//   acquire(&p->lock);
+
+//   for(;;){
+//     // Scan through table looking for exited children.
+//     havekids = 0;
+//     for(np = proc; np < &proc[NPROC]; np++){
+//       // this code uses np->parent without holding np->lock.
+//       // acquiring the lock first would cause a deadlock,
+//       // since np might be an ancestor, and we already hold p->lock.
+//       if(np->parent == p){
+//         // np->parent can't change between the check and the acquire()
+//         // because only the parent changes it, and we're the parent.
+//         acquire(&np->lock);
+//         havekids = 1;
+//         if(np->state == ZOMBIE){
+//           // Found one.
+//           pid = np->pid;
+//           if(addr != 0 && copyout2(addr, (char *)&np->xstate, sizeof(np->xstate)) < 0) {
+//             release(&np->lock);
+//             release(&p->lock);
+//             return -1;
+//           }
+//           freeproc(np);
+//           release(&np->lock);
+//           release(&p->lock);
+//           return pid;
+//         }
+//         release(&np->lock);
+//       }
+//     }
+
+//     // No point waiting if we don't have any children.
+//     if(!havekids || p->killed){
+//       release(&p->lock);
+//       return -1;
+//     }
+    
+//     // Wait for a child to exit.
+//     sleep(p, &p->lock);  //DOC: wait-sleep
+//   }
+// }
+int wait(int wpid, uint64 addr)
 {
   struct proc *np;
-  int havekids, pid;
+  int havekids, pid, status;
   struct proc *p = myproc();
 
   // hold p->lock for the whole time to avoid lost
   // wakeups from a child's exit().
   acquire(&p->lock);
 
-  for(;;){
+  for (;;)
+  {
     // Scan through table looking for exited children.
     havekids = 0;
-    for(np = proc; np < &proc[NPROC]; np++){
+    for (np = proc; np < &proc[NPROC]; np++)
+    {
       // this code uses np->parent without holding np->lock.
       // acquiring the lock first would cause a deadlock,
       // since np might be an ancestor, and we already hold p->lock.
-      if(np->parent == p){
+      if (np->parent == p)
+      {
+        
         // np->parent can't change between the check and the acquire()
         // because only the parent changes it, and we're the parent.
         acquire(&np->lock);
         havekids = 1;
-        if(np->state == ZOMBIE){
+        // printf("pid: %d\n", np->pid);
+        // printf("wait for pid: %d\n", upid);
+        if (np->state == ZOMBIE && (np->pid == wpid || wpid == -1))
+        {
           // Found one.
           pid = np->pid;
-          if(addr != 0 && copyout2(addr, (char *)&np->xstate, sizeof(np->xstate)) < 0) {
+          status = np->xstate << 8; 
+          if (addr != 0 && copyout2(addr, (char *)&status, sizeof(status)) < 0)
+          {
             release(&np->lock);
             release(&p->lock);
             return -1;
@@ -509,6 +567,7 @@ wait(uint64 addr)
           freeproc(np);
           release(&np->lock);
           release(&p->lock);
+          // printf("pid %d ended\n", pid);
           return pid;
         }
         release(&np->lock);
@@ -516,90 +575,16 @@ wait(uint64 addr)
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || p->killed){
+    if (!havekids || p->killed)
+    {
       release(&p->lock);
       return -1;
     }
-    
+
     // Wait for a child to exit.
-    sleep(p, &p->lock);  //DOC: wait-sleep
+    sleep(p, &p->lock); // DOC: wait-sleep
   }
 }
-
-int
-wait4(int wpid, uint64 addr)
-{
-  struct proc *np;
-  int havekids, pid;
-  struct proc *p = myproc();
-
-  // 只允许 -1 或者 >0；其他值直接报错
-  if (wpid != -1 && wpid <= 0) {
-    return -1;
-  }
-
-  // 持有 p->lock 全程，避免子进程 exit() 的唤醒丢失
-  acquire(&p->lock);
-
-  for(;;){
-    havekids = 0;
-    // 是否在本轮扫描中“看见”了目标子进程
-    // 若 wpid==-1（任意子进程），无需特判目标，置为 1 以跳过“不存在目标”的报错分支
-    int saw_target = (wpid == -1) ? 1 : 0;
-
-    // 扫描进程表，查找子进程
-    for(np = proc; np < &proc[NPROC]; np++){
-      if(np->parent == p){
-        havekids = 1;
-
-        // 如果指定了 wpid，但当前不是目标 pid，则跳过
-        if (wpid > 0 && np->pid != wpid) {
-          continue;
-        }
-        // 走到这里说明：要么 wpid==-1（任意），要么 np->pid==wpid（目标）
-        saw_target = 1;
-
-        // 这里不能先拿 np->lock 再找 parent，否则会破坏锁顺序导致死锁
-        acquire(&np->lock);
-        if(np->state == ZOMBIE){
-          // 找到已退出的子进程
-          pid = np->pid;
-
-          // POSIX 语义：高 8 位放退出码，低 8 位放信号；xv6 的 xstate 是退出码
-          int status = np->xstate << 8;
-
-          if(addr != 0 && copyout2(addr, (char*)&status, sizeof(status)) < 0) {
-            release(&np->lock);
-            release(&p->lock);
-            return -1;
-          }
-
-          freeproc(np);
-          release(&np->lock);
-          release(&p->lock);
-          return pid;
-        }
-        release(&np->lock);
-      }
-    }
-
-    // 如果在等待特定 wpid，但压根没有这个子进程，按 POSIX 语义返回 -1（ECHILD）
-    if (wpid > 0 && !saw_target) {
-      release(&p->lock);
-      return -1;
-    }
-
-    // 没有任何子进程可等，或者当前进程被杀，则返回 -1
-    if(!havekids || p->killed){
-      release(&p->lock);
-      return -1;
-    }
-
-    // 进入睡眠等待子进程退出
-    sleep(p, &p->lock);  // DOC: wait-sleep
-  }
-}
-
 
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.

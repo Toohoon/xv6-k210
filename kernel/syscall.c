@@ -1,4 +1,3 @@
-
 #include "include/types.h"
 #include "include/param.h"
 #include "include/memlayout.h"
@@ -126,7 +125,7 @@ extern uint64 sys_munmap(void);
 extern uint64 sys_gettimeofday(void);
 extern uint64 sys_nanosleep(void);
 extern uint64 sys_clone(void);
-//extern uint64 sys_wait4(void); 
+extern uint64 sys_waitpid(void); 
 
 
 static uint64 (*syscalls[])(void) = {
@@ -166,7 +165,7 @@ static uint64 (*syscalls[])(void) = {
   [SYS_gettimeofday] sys_gettimeofday,
   [SYS_nanosleep] sys_nanosleep,
   [SYS_clone] sys_clone,
-  //[SYS_wait4] sys_wait4,
+  [SYS_waitpid] sys_waitpid,
 };
 static int syscall_counts[NELEM(syscalls)];
 static char *sysnames[] = {
@@ -206,7 +205,7 @@ static char *sysnames[] = {
   [SYS_gettimeofday] "sys_gettimeofday",
   [SYS_nanosleep] "nanosleep",
   [SYS_clone] "clone",
-  //[SYS_wait4] "wait4",
+  [SYS_waitpid] "waitpid",
 };
 
 void
