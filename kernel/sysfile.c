@@ -111,12 +111,22 @@ sys_close(void)
 uint64
 sys_fstat(void)
 {
+  int fd;
+  uint64 addr;          // 用户空间 struct kstat* 的地址
   struct file *f;
-  uint64 st; // user pointer to struct stat
+  struct proc *p = myproc();
 
-  if(argfd(0, 0, &f) < 0 || argaddr(1, &st) < 0)
+  // 取参数：fd, &kst
+  if (argint(0, &fd) < 0 || argaddr(1, &addr) < 0)
     return -1;
-  return filestat(f, st);
+
+  // 检查 fd 合法性，并取到 struct file*
+  if (fd < 0 || fd >= NOFILE || (f = p->ofile[fd]) == 0)
+    return -1;
+
+  // 把状态写到用户空间的 kstat 结构中
+  // 由 filestat 负责填各字段（st_dev, st_ino, st_size 等）
+  return filestat(f, addr);
 }
 
 static struct dirent*
@@ -862,4 +872,99 @@ sys_getdents64(void)
   // 返回这次真正写入到 buf 的字节数
   // 如果本次一次都没成功写入，而且目录刚好读完，nread == 0 → 返回 0，符合“读到结尾返回 0”的要求
   return nread;
+}
+uint64
+sys_mkdirat(void)
+{
+  char path[FAT32_MAX_PATH];
+  int dirfd, mode;
+  struct dirent *ep;
+
+  // 解析参数：dirfd, path, mode
+  if (argint(0, &dirfd) < 0 ||
+      argstr(1, path, FAT32_MAX_PATH) < 0 ||
+      argint(2, &mode) < 0) {
+    return -1;
+  }
+
+  // 空路径直接失败
+  if (strlen(path) == 0)
+    return -1;
+
+  // 关键：根据 dirfd + path 计算出绝对路径
+  //  - path 是绝对路径：直接保留
+  //  - path 是相对路径：
+  //      * dirfd == AT_FDCWD → 相对当前工作目录
+  //      * 其他 dirfd       → 相对指定目录 fd
+  if (get_path(path, dirfd) < 0)
+    return -1;
+
+  // 创建目录。create 原型：create(char *path, short type, int mode)
+  ep = create(path, T_DIR, mode);
+  if (ep == NULL)
+    return -1;
+
+  // 解锁并释放 dirent
+  eunlock(ep);
+  eput(ep);
+
+  return 0;   // 成功
+}
+uint64
+sys_unlinkat(void)
+{
+  char path[FAT32_MAX_PATH];
+  int dirfd;
+  int flags;              // 一定要是 int，配合 argint
+  struct dirent *ep;
+  int is_dir;
+
+  // 解析参数：dirfd, path, flags
+  if (argint(0, &dirfd) < 0 ||
+      argstr(1, path, FAT32_MAX_PATH) < 0 ||
+      argint(2, &flags) < 0) {
+    return -1;
+  }
+
+  if (strlen(path) == 0)
+    return -1;
+
+  // 把相对路径 + dirfd 组合成绝对路径（跟你 sys_mkdirat 一样）
+  if (get_path(path, dirfd) < 0)
+    return -1;
+
+  // 根据绝对路径找到对应目录项
+  ep = ename(path);
+  if (ep == NULL)
+    return -1;
+
+  elock(ep);
+
+  // 判断是不是目录：看 FAT32 attribute 里的 ATTR_DIRECTORY 位
+  is_dir = (ep->attribute & ATTR_DIRECTORY) != 0;
+
+  if (flags & AT_REMOVEDIR) {
+    // 要求删除目录，但目标不是目录 → 错
+    if (!is_dir) {
+      eunlock(ep);
+      eput(ep);
+      return -1;
+    }
+  } else {
+    // 删除普通文件，但目标是目录 → 错
+    if (is_dir) {
+      eunlock(ep);
+      eput(ep);
+      return -1;
+    }
+  }
+
+  // 统一调用 eremove 删除这个 dirent
+  // （目录的空/非空检查、文件数据清理等都在 eremove 里做）
+  eremove(ep);
+
+  eunlock(ep);
+  eput(ep);
+
+  return 0;
 }

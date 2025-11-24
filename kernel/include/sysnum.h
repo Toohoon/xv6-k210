@@ -10,7 +10,7 @@
 #define SYS_kill            6
 #define SYS_exec            221
 #define SYS_fstat           80
-#define SYS_chdir           9
+#define SYS_chdir           49
 #define SYS_dup             23
 #define SYS_dup3            24
 #define SYS_getpid          172
@@ -24,7 +24,7 @@
 #define SYS_remove          25
 #define SYS_trace           18
 #define SYS_sysinfo         19
-#define SYS_mkdir           20
+#define SYS_mkdir           1030
 #define SYS_close           57
 #define SYS_test_proc       22
 #define SYS_dev             10000
@@ -42,6 +42,8 @@
 #define SYS_clone           220
 #define SYS_waitpid         260
 #define SYS_getdents64      61
-//#define SYS_fstat           80
+#define SYS_mkdirat         34
+#define SYS_unlinkat        35
+
 
 #endif

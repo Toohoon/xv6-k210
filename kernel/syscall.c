@@ -129,7 +129,8 @@ extern uint64 sys_waitpid(void);
 extern uint64 sys_getppid(void);
 extern uint64 sys_dup3(void);
 extern uint64 sys_getdents64(void);
-
+extern uint64 sys_mkdirat(void);
+extern uint64 sys_unlinkat(void);
 
 static uint64 (*syscalls[])(void) = {
   [SYS_fork]        sys_fork,
@@ -172,6 +173,8 @@ static uint64 (*syscalls[])(void) = {
   [SYS_getppid] sys_getppid,
   [SYS_dup3] sys_dup3,
   [SYS_getdents64] sys_getdents64,
+  [SYS_mkdirat] sys_mkdirat,
+  [SYS_unlinkat] sys_unlinkat,
 };
 static int syscall_counts[NELEM(syscalls)];
 static char *sysnames[] = {
@@ -215,6 +218,8 @@ static char *sysnames[] = {
   [SYS_getppid] "getppid",
   [SYS_dup3] "dup3",
   [SYS_getdents64] "getdents64",
+  [SYS_mkdirat] "mkdirat",
+  [SYS_unlinkat] "unlinkat",
 };
 
 void

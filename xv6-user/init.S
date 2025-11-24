@@ -92,85 +92,94 @@ main:
 	.string	"brk"
 	.align	3
 .LC5:
-	.string	"clone"
+	.string	"chdir"
 	.align	3
 .LC6:
-	.string	"close"
+	.string	"clone"
 	.align	3
 .LC7:
-	.string	"dup"
+	.string	"close"
 	.align	3
 .LC8:
-	.string	"dup2"
+	.string	"dup"
 	.align	3
 .LC9:
-	.string	"execve"
+	.string	"dup2"
 	.align	3
 .LC10:
-	.string	"exit"
+	.string	"execve"
 	.align	3
 .LC11:
-	.string	"fork"
+	.string	"exit"
 	.align	3
 .LC12:
-	.string	"fstat"
+	.string	"fork"
 	.align	3
 .LC13:
-	.string	"getcwd"
+	.string	"fstat"
 	.align	3
 .LC14:
-	.string	"getdents"
+	.string	"getcwd"
 	.align	3
 .LC15:
-	.string	"getpid"
+	.string	"getdents"
 	.align	3
 .LC16:
-	.string	"getppid"
+	.string	"getpid"
 	.align	3
 .LC17:
-	.string	"gettimeofday"
+	.string	"getppid"
 	.align	3
 .LC18:
-	.string	"mmap"
+	.string	"gettimeofday"
 	.align	3
 .LC19:
-	.string	"munmap"
+	.string	"mkdir"
 	.align	3
 .LC20:
-	.string	"open"
+	.string	"mmap"
 	.align	3
 .LC21:
-	.string	"openat"
+	.string	"munmap"
 	.align	3
 .LC22:
-	.string	"pipe"
+	.string	"open"
 	.align	3
 .LC23:
-	.string	"read"
+	.string	"openat"
 	.align	3
 .LC24:
-	.string	"sleep"
+	.string	"pipe"
 	.align	3
 .LC25:
-	.string	"times"
+	.string	"read"
 	.align	3
 .LC26:
-	.string	"uname"
+	.string	"sleep"
 	.align	3
 .LC27:
-	.string	"wait"
+	.string	"times"
 	.align	3
 .LC28:
-	.string	"waitpid"
+	.string	"uname"
 	.align	3
 .LC29:
-	.string	"write"
+	.string	"unlink"
 	.align	3
 .LC30:
+	.string	"wait"
+	.align	3
+.LC31:
+	.string	"waitpid"
+	.align	3
+.LC32:
+	.string	"write"
+	.align	3
+.LC33:
 	.string	"yield"
 	.globl	argv
 	.align	3
-.LC31:
+.LC34:
 	.string	"sh"
 	.data
 	.align	2
@@ -178,17 +187,17 @@ main:
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	27
+	.word	30
 	.section	.data.rel.local,"aw"
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
 	.size	argv, 16
 argv:
-	.dword	.LC31
+	.dword	.LC34
 	.dword	0
 	.type	tests, @object
-	.size	tests, 216
+	.size	tests, 240
 tests:
 	.dword	.LC4
 	.dword	.LC5
@@ -217,5 +226,8 @@ tests:
 	.dword	.LC28
 	.dword	.LC29
 	.dword	.LC30
+	.dword	.LC31
+	.dword	.LC32
+	.dword	.LC33
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits

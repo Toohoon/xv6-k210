@@ -9,6 +9,7 @@
 char *argv[] = { "sh", 0 };
 char *tests[] = {
     "brk",
+    "chdir",
     "clone",
     "close",
     "dup",
@@ -22,7 +23,7 @@ char *tests[] = {
     "getpid",
     "getppid",
     "gettimeofday",
-    //"mkdir_",
+    "mkdir",
     "mmap",
     //"mount",
     "munmap",
@@ -34,7 +35,7 @@ char *tests[] = {
     "times",
     //"umount",
     "uname",
-    //"unlink",
+    "unlink",
     "wait",
     "waitpid",
     "write",
