@@ -95,55 +95,82 @@ main:
 	.string	"clone"
 	.align	3
 .LC6:
-	.string	"execve"
+	.string	"close"
 	.align	3
 .LC7:
-	.string	"exit"
+	.string	"dup"
 	.align	3
 .LC8:
-	.string	"fork"
+	.string	"dup2"
 	.align	3
 .LC9:
-	.string	"getcwd"
+	.string	"execve"
 	.align	3
 .LC10:
-	.string	"getpid"
+	.string	"exit"
 	.align	3
 .LC11:
-	.string	"getppid"
+	.string	"fork"
 	.align	3
 .LC12:
-	.string	"gettimeofday"
+	.string	"fstat"
 	.align	3
 .LC13:
-	.string	"mmap"
+	.string	"getcwd"
 	.align	3
 .LC14:
-	.string	"munmap"
+	.string	"getdents"
 	.align	3
 .LC15:
-	.string	"sleep"
+	.string	"getpid"
 	.align	3
 .LC16:
-	.string	"times"
+	.string	"getppid"
 	.align	3
 .LC17:
-	.string	"uname"
+	.string	"gettimeofday"
 	.align	3
 .LC18:
-	.string	"wait"
+	.string	"mmap"
 	.align	3
 .LC19:
-	.string	"waitpid"
+	.string	"munmap"
 	.align	3
 .LC20:
-	.string	"write"
+	.string	"open"
 	.align	3
 .LC21:
+	.string	"openat"
+	.align	3
+.LC22:
+	.string	"pipe"
+	.align	3
+.LC23:
+	.string	"read"
+	.align	3
+.LC24:
+	.string	"sleep"
+	.align	3
+.LC25:
+	.string	"times"
+	.align	3
+.LC26:
+	.string	"uname"
+	.align	3
+.LC27:
+	.string	"wait"
+	.align	3
+.LC28:
+	.string	"waitpid"
+	.align	3
+.LC29:
+	.string	"write"
+	.align	3
+.LC30:
 	.string	"yield"
 	.globl	argv
 	.align	3
-.LC22:
+.LC31:
 	.string	"sh"
 	.data
 	.align	2
@@ -151,17 +178,17 @@ main:
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	18
+	.word	27
 	.section	.data.rel.local,"aw"
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
 	.size	argv, 16
 argv:
-	.dword	.LC22
+	.dword	.LC31
 	.dword	0
 	.type	tests, @object
-	.size	tests, 144
+	.size	tests, 216
 tests:
 	.dword	.LC4
 	.dword	.LC5
@@ -181,5 +208,14 @@ tests:
 	.dword	.LC19
 	.dword	.LC20
 	.dword	.LC21
+	.dword	.LC22
+	.dword	.LC23
+	.dword	.LC24
+	.dword	.LC25
+	.dword	.LC26
+	.dword	.LC27
+	.dword	.LC28
+	.dword	.LC29
+	.dword	.LC30
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits

@@ -257,34 +257,53 @@ sys_chdir(void)
 uint64
 sys_pipe(void)
 {
-  uint64 fdarray; // user pointer to array of two integers
+  int fd[2];
   struct file *rf, *wf;
-  int fd0, fd1;
   struct proc *p = myproc();
 
-  if(argaddr(0, &fdarray) < 0)
-    return -1;
+  // 创建内核 pipe 对象（rf/wf 是 file* 类型）
   if(pipealloc(&rf, &wf) < 0)
+    return -1;  // 分配失败
+
+  // 从用户态取得 fd 数组的地址
+  uint64 user_fd_array;
+  if(argaddr(0, &user_fd_array) < 0)
     return -1;
-  fd0 = -1;
-  if((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0){
-    if(fd0 >= 0)
-      p->ofile[fd0] = 0;
+
+  // 分配两个 fd，分别是读端和写端
+  int fd0 = -1;
+  int fd1 = -1;
+
+  // 为 rf 分配文件描述符
+  if((fd0 = fdalloc(rf)) < 0){
     fileclose(rf);
     fileclose(wf);
     return -1;
   }
-  // if(copyout(p->pagetable, fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
-  //    copyout(p->pagetable, fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
-  if(copyout2(fdarray, (char*)&fd0, sizeof(fd0)) < 0 ||
-     copyout2(fdarray+sizeof(fd0), (char *)&fd1, sizeof(fd1)) < 0){
+
+  // 为 wf 分配文件描述符
+  if((fd1 = fdalloc(wf)) < 0){
+    p->ofile[fd0] = 0;  // 回滚 fd0
+    fileclose(rf);
+    fileclose(wf);
+    return -1;
+  }
+
+  // 写回到用户态的 fd[2]
+  fd[0] = fd0;
+  fd[1] = fd1;
+
+  // 把 fd[2] 写到用户的地址空间中（必须用 copyout）
+  if(copyout(p->pagetable, user_fd_array, (char *)fd, sizeof(fd)) < 0){
+    // 如果 copyout 失败，需要回滚
     p->ofile[fd0] = 0;
     p->ofile[fd1] = 0;
     fileclose(rf);
     fileclose(wf);
     return -1;
   }
-  return 0;
+
+  return 0;   // 成功返回 0
 }
 
 // To open console device.
@@ -596,136 +615,6 @@ sys_munmap(void)
   vmunmap(p->pagetable, addr, npages, 0);
   return 0;
 }
-// static int get_abspath(struct dirent* de, char* path_buf, int buf_size) {
-//   if (de == NULL || de->parent == NULL) {
-//     if (buf_size < 2) {
-//       return -1;
-//     }
-//     strncpy(path_buf, "/", buf_size);
-//     return 0;
-//   }
-//   if (get_abspath(de->parent, path_buf, buf_size) < 0) {
-//     return -1;
-//   }
-//   int parent_len = strlen(path_buf);
-//   if (parent_len > 1) {
-//     if (parent_len + 1 >= buf_size) {
-//       return -1;
-//     }
-//     path_buf[parent_len++] = '/';
-//     path_buf[parent_len] = '\0';
-//   }
-
-//   safestrcpy(path_buf + parent_len, de->filename, buf_size - parent_len);
-//   return 0;
-// }
-// int get_path(char* path, int fd) {
-//   if (path == NULL) {
-//     return -1;
-//   }
-//   if (path[0] == '/') {
-//     return 0;
-//   }
-//   if (path[0] == '.' && path[1] == '/') {
-//     path += 2;
-//   }
-//   char base_path[FAT32_MAX_PATH];
-//   struct dirent* base_de = NULL;
-//   if (fd == AT_FDCWD) {
-//     base_de = myproc()->cwd;
-//   }
-//   else {
-//     if (fd < 0 || fd >= NOFILE) {
-//       return -1;
-//     }
-//     struct file* f = myproc()->ofile[fd];
-//     if (f == NULL || !(f->ep->attribute & ATTR_DIRECTORY)) {
-//       return -1;
-//     }
-//     base_de = f->ep;
-//   }
-//   if (get_abspath(base_de, base_path, FAT32_MAX_PATH) < 0) {
-//     return -1;
-//   }
-//   char final_path[FAT32_MAX_PATH];
-//   safestrcpy(final_path, base_path, FAT32_MAX_PATH);
-//   int base_len = strlen(final_path);
-//   if (base_len > 1) {
-//     if (base_len + 1 >= sizeof(final_path)) {
-//       return -1;
-//     }
-//     final_path[base_len++] = '/';
-//     final_path[base_len] = '\0';
-//   }
-
-//   safestrcpy(final_path + base_len, path, FAT32_MAX_PATH - base_len);
-//   safestrcpy(path, final_path, FAT32_MAX_PATH);
-
-//   return 0;
-// }
-// uint64
-// sys_openat(void) {
-//   char path[FAT32_MAX_PATH];
-//   int dirfd, flags, mode, fd;
-//   struct file* f;
-//   struct dirent* ep;
-
-//   if (
-//     argint(0, &dirfd) < 0 ||
-//     argstr(1, path, FAT32_MAX_PATH) < 0 ||
-//     argint(2, &flags) < 0 ||
-//     argint(3, &mode) < 0
-//     ) {
-//     return -1;
-//   }
-
-//   if (strlen(path) == 0) {
-//     return -1;
-//   }
-//   if (get_path(path, dirfd) < 0) {
-//     return -1;
-//   }
-//   if (flags & O_CREATE) {
-//     ep = create(path, T_FILE, mode);
-//     if (ep == NULL) {
-//       return -1;
-//     }
-//   }
-//   else {
-//     if ((ep = ename(path)) == NULL) {
-//       return -1;
-//     }
-//     elock(ep);
-//     if ((ep->attribute & ATTR_DIRECTORY) && (flags & (O_WRONLY | O_RDWR))) {
-//       eunlock(ep);
-//       eput(ep);
-//       return -1;
-//     }
-//   }
-
-//   if ((f = filealloc()) == NULL || (fd = fdalloc(f)) < 0) {
-//     if (f) {
-//       fileclose(f);
-//     }
-//     eunlock(ep);
-//     eput(ep);
-//     return -1;
-//   }
-
-//   if (!(ep->attribute & ATTR_DIRECTORY) && (flags & O_TRUNC)) {
-//     etrunc(ep);
-//   }
-
-//   f->type = FD_ENTRY;
-//   f->off = (flags & O_APPEND) ? ep->file_size : 0;
-//   f->ep = ep;
-//   f->readable = !(flags & O_WRONLY);
-//   f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
-
-//   eunlock(ep);
-
-//   return fd;
-// }
 
 // 1) 안전한 절대경로 구축: 길이 체크 강화
 static int get_abspath(struct dirent* de, char* buf, int bufsz) {
@@ -797,79 +686,6 @@ static int get_path(char* out_path, int dirfd) {
   safestrcpy(out_path, final, FAT32_MAX_PATH);
   return 0;
 }
-// uint64 sys_openat(void)
-// {
-//   int fd;
-//   char path[FAT32_MAX_PATH];
-//   int flags;
-//   int mode;
-//   struct dirent *ep;
-//   struct file *f;
-//   if (argint(0, &fd) < 0 || argstr(1, path, FAT32_MAX_PATH) < 0 || argint(2, &flags) < 0 || argint(3, &mode) < 0)
-//     return -1;
-//   if (*path == '\0')
-//     return -1;
-
-//   if (get_path(path, fd) < 0)
-//   {
-//     printf("error in openat\n");
-//     return -1;
-//   }
-
-//   int new_fd;
-//   if (flags & O_CREATE)
-//   {
-//     ep = create(path, T_FILE, flags);
-//     if (ep == NULL)
-//     {
-//       printf("creat null: %d\n", flags);
-//       return -1;
-//     }
-//   }
-//   else
-//   {
-//     if ((ep = ename(path)) == NULL)
-//     {
-//       return -1;
-//     }
-//     elock(ep);
-//     if ((ep->attribute & ATTR_DIRECTORY) && (flags & O_WRONLY))
-//     {
-//       eunlock(ep);
-//       eput(ep);
-//       printf("show O_DIRECTORY: %d \n", flags);
-//       printf("abs_path=%s\n", path);
-//       return -1;
-//     }
-//   }
-
-//   if ((f = filealloc()) == NULL || (new_fd = fdalloc(f)) < 0)
-//   {
-//     if (f)
-//     {
-//       fileclose(f);
-//     }
-//     eunlock(ep);
-//     eput(ep);
-//     printf("unable to open: %d\n", flags);
-//     return -1;
-//   }
-
-//   if (!(ep->attribute & ATTR_DIRECTORY) && (flags & O_TRUNC))
-//   {
-//     etrunc(ep);
-//   }
-
-//   f->type = FD_ENTRY;
-//   f->off = (flags & O_APPEND) ? ep->file_size : 0;
-//   f->ep = ep;
-//   f->readable = !(flags & O_WRONLY);
-//   f->writable = (flags & O_WRONLY) || (flags & O_RDWR);
-
-//   eunlock(ep);
-
-//   return new_fd;
-// }
 uint64
 sys_openat(void) {
   char path[FAT32_MAX_PATH];
@@ -948,4 +764,102 @@ sys_gettimeofday(void)
   *(uint64 *)addr = sec;
   *((uint64 *)addr + 1) = usec;
   return 0;
+}
+uint64
+sys_dup3(void)
+{
+  int oldfd, newfd;
+  struct file *f;
+  struct proc *p = myproc();
+
+  // 读取两个参数
+  if(argint(0, &oldfd) < 0 || argint(1, &newfd) < 0)
+    return -1;
+
+  // 检查 oldfd 是否有效，并且取出 struct file*
+  if(oldfd < 0 || oldfd >= NOFILE || (f = p->ofile[oldfd]) == 0)
+    return -1;
+
+  // 如果 oldfd == newfd，直接返回（dup3规范就是这样）
+  if(oldfd == newfd)
+    return newfd;
+
+  // newfd 如果已经被使用，先关闭它
+  if(newfd < 0 || newfd >= NOFILE)
+    return -1;
+
+  if(p->ofile[newfd]){
+    fileclose(p->ofile[newfd]);   // 关闭旧的文件
+    p->ofile[newfd] = 0;
+  }
+
+  // 把 newfd 指向 oldfd 对应的文件结构
+  p->ofile[newfd] = f;
+  filedup(f);  // 增加引用计数
+
+  return newfd;
+}
+uint64
+sys_getdents64(void)
+{
+  int fd;
+  uint64 ubuf;   // 用户缓冲区地址：注意是 uint64
+  int len;       // 用户缓冲区大小
+  struct file *f;
+  struct proc *p = myproc();
+
+  // 读取参数：fd, buf, len
+  if (argint(0, &fd) < 0 || argaddr(1, &ubuf) < 0 || argint(2, &len) < 0)
+    return -1;
+
+  // 校验 fd
+  if (fd < 0 || fd >= NOFILE || (f = p->ofile[fd]) == 0)
+    return -1;
+
+  // 必须是目录类文件（在你这个实现里，一般目录/普通文件都用 FD_ENTRY）
+  if (f->type != FD_ENTRY)
+    return -1;
+
+  if (len <= 0)
+    return -1;
+
+  int nread = 0;   // 已经写入到 buf 的字节数
+
+  while (nread < len) {
+    // 记录调用前的偏移量，防止这次 entry 太大放不下，需要回滚
+    uint oldoff = f->off;
+
+    // dirnext 会：
+    //  - 从当前目录偏移取一条 entry
+    //  - 把 struct dirent 写到 ubuf + nread
+    //  - 返回写入的字节数（d_reclen）
+    //  - 如果到达目录末尾，返回 0
+    //  - 如果出错，返回负数
+    int r = dirnext(f, ubuf + nread);
+
+    if (r < 0) {
+      // 出错：如果啥都没读到，直接返回 -1；否则返回已经读到的字节
+      if (nread == 0)
+        return -1;
+      else
+        return nread;
+    }
+
+    if (r == 0) {
+      // 目录读完：如果这次循环前就没写任何东西，返回 0；否则返回当前累计字节
+      break;
+    }
+
+    // 这条记录大小是 r，如果加上它会超过缓冲区，就回滚 offset，结束循环
+    if (nread + r > len) {
+      f->off = oldoff;   // 撤销这次 dirnext 的偏移
+      break;
+    }
+
+    nread += r;
+  }
+
+  // 返回这次真正写入到 buf 的字节数
+  // 如果本次一次都没成功写入，而且目录刚好读完，nread == 0 → 返回 0，符合“读到结尾返回 0”的要求
+  return nread;
 }

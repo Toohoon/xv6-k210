@@ -127,6 +127,8 @@ extern uint64 sys_nanosleep(void);
 extern uint64 sys_clone(void);
 extern uint64 sys_waitpid(void); 
 extern uint64 sys_getppid(void);
+extern uint64 sys_dup3(void);
+extern uint64 sys_getdents64(void);
 
 
 static uint64 (*syscalls[])(void) = {
@@ -168,6 +170,8 @@ static uint64 (*syscalls[])(void) = {
   [SYS_clone] sys_clone,
   [SYS_waitpid] sys_waitpid,
   [SYS_getppid] sys_getppid,
+  [SYS_dup3] sys_dup3,
+  [SYS_getdents64] sys_getdents64,
 };
 static int syscall_counts[NELEM(syscalls)];
 static char *sysnames[] = {
@@ -209,6 +213,8 @@ static char *sysnames[] = {
   [SYS_clone] "clone",
   [SYS_waitpid] "waitpid",
   [SYS_getppid] "getppid",
+  [SYS_dup3] "dup3",
+  [SYS_getdents64] "getdents64",
 };
 
 void

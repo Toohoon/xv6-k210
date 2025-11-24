@@ -273,6 +273,7 @@ my_set:
 	@$(MAKE) my_init
 	@$(MAKE) fs
 	@$(MAKE) clean
+	@$(MAKE) run
 
 all: build 
 	@cp $(T)/kernel ./kernel-qemu
