@@ -21,6 +21,7 @@ int openat(const char *filename, int mode);
 int fstat(int fd, struct stat*);
 int fstat(int fd, struct stat*);
 int mkdir(const char *dirname);
+int mkdirat(int dirfd, const char *path, int mode);
 int chdir(const char *dirname);
 int dup(int fd);
 int getpid(void);

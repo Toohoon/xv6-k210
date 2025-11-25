@@ -28,6 +28,7 @@ entry("open");
 entry("openat");
 entry("fstat");
 entry("mkdir");
+entry("mkdirat");
 entry("chdir");
 entry("dup");
 entry("getpid");

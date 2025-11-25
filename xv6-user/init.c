@@ -8,7 +8,7 @@
 
 char *argv[] = { "sh", 0 };
 char *tests[] = {
-    "brk",
+   "brk",
     "chdir",
     "clone",
     "close",
@@ -23,9 +23,9 @@ char *tests[] = {
     "getpid",
     "getppid",
     "gettimeofday",
-    "mkdir",
+    "mkdir_",
     "mmap",
-    //"mount",
+    "mount",
     "munmap",
     "open",
     "openat",
@@ -33,7 +33,7 @@ char *tests[] = {
     "read",
     "sleep",
     "times",
-    //"umount",
+    "umount",
     "uname",
     "unlink",
     "wait",
@@ -50,7 +50,7 @@ int main(void)
   dup(0); // stdout
   dup(0); // stderr
   //shutdown();
-  //printf("Working Test!!\n");
+  printf("Working Test!!\n");
   for (int i = 0; i < counts ; i++)
   {
     printf("\ninit: starting %d\n", i);

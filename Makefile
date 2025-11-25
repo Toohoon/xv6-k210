@@ -1,4 +1,4 @@
-#platform	:= k210
+# platform	:= k210
 platform	:= qemu
 # mode := debug
 mode := release
@@ -146,7 +146,7 @@ ifeq ($(platform), k210)
 	@$(OBJCOPY) $(RUSTSBI) --strip-all -O binary $(k210)
 	@dd if=$(image) of=$(k210) bs=128k seek=1
 	@$(OBJDUMP) -D -b binary -m riscv $(k210) > $T/k210.asm
-	@ chmod 777 $(k210-serialport)
+	@chmod 777 $(k210-serialport)
 	@python3 ./tools/kflash.py -p $(k210-serialport) -b 1500000 -t $(k210)
 else
 	@$(QEMU) $(QEMUOPTS)
@@ -215,31 +215,31 @@ userprogs: $(UPROGS)
 
 dst=/mnt
 
-# @ cp $U/_init $(dst)/init
-# @ cp $U/_sh $(dst)/sh
+# @cp $U/_init $(dst)/init
+# @cp $U/_sh $(dst)/sh
 # Make fs image
 fs: $(UPROGS)
 	@if [ ! -f "fs.img" ]; then \
 		echo "making fs image..."; \
 		dd if=/dev/zero of=fs.img bs=512k count=512; \
 		mkfs.vfat -F 32 fs.img; fi
-	@ mount fs.img $(dst)
-	@if [ ! -d "$(dst)/bin" ]; then  mkdir $(dst)/bin; fi
-	@ cp README $(dst)/README
+	@mount fs.img $(dst)
+	@if [ ! -d "$(dst)/bin" ]; then mkdir $(dst)/bin; fi
+	@cp README $(dst)/README
 	@for file in $$( ls $U/_* ); do \
-		 cp $$file $(dst)/$${file#$U/_};\
-		 cp $$file $(dst)/bin/$${file#$U/_}; done
+		cp $$file $(dst)/$${file#$U/_};\
+		cp $$file $(dst)/bin/$${file#$U/_}; done
 	@cp -R riscv64/* $(dst)
-	@ umount $(dst)
+	@umount $(dst)
 
 # Write mounted sdcard
 sdcard: userprogs
-	@if [ ! -d "$(dst)/bin" ]; then  mkdir $(dst)/bin; fi
+	@if [ ! -d "$(dst)/bin" ]; then mkdir $(dst)/bin; fi
 	@for file in $$( ls $U/_* ); do \
-		 cp $$file $(dst)/bin/$${file#$U/_}; done
-	@ cp $U/_init $(dst)/init
-	@ cp $U/_sh $(dst)/sh
-	@ cp README $(dst)/README
+		cp $$file $(dst)/bin/$${file#$U/_}; done
+	@cp $U/_init $(dst)/init
+	@cp $U/_sh $(dst)/sh
+	@cp README $(dst)/README
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
@@ -251,6 +251,9 @@ clean:
 	$U/usys.S \
 	$(UPROGS)
 
+all: build
+	@cp $(T)/kernel ./kernel-qemu
+	@cp ./bootloader/SBI/sbi-qemu ./sbi-qemu
 # my_init:
 # 	riscv64-linux-gnu-objcopy -S -O binary xv6-user/_init oo
 # 	od -v -t x1 -An oo | sed -E 's/ (.{2})/0x\1,/g' > kernel/include/initcode.h
@@ -278,5 +281,3 @@ my_set:
 all: build 
 	@cp $(T)/kernel ./kernel-qemu
 	@cp ./bootloader/SBI/sbi-qemu ./sbi-qemu
-
-

@@ -5,15 +5,18 @@
 	.section	.rodata.str1.8,"aMS",@progbits,1
 	.align	3
 .LC0:
-	.string	"\ninit: starting %d\n"
+	.string	"Working Test!!\n"
 	.align	3
 .LC1:
-	.string	"init: fork failed\n"
+	.string	"\ninit: starting %d\n"
 	.align	3
 .LC2:
-	.string	"init: exec %s failed\n"
+	.string	"init: fork failed\n"
 	.align	3
 .LC3:
+	.string	"init: exec %s failed\n"
+	.align	3
+.LC4:
 	.string	"init: wait returned an error\n"
 	.section	.text.startup,"ax",@progbits
 	.align	1
@@ -34,9 +37,11 @@ main:
 	call	dup@plt
 	li	a0,0
 	call	dup@plt
+	lla	a0,.LC0
+	call	printf@plt
 	li	s0,0
 	lla	s2,.LANCHOR1
-	lla	s3,.LC0
+	lla	s3,.LC1
 .L2:
 	lw	a5,0(s2)
 	bgt	a5,s0,.L6
@@ -56,7 +61,7 @@ main:
 	call	fork@plt
 	mv	s1,a0
 	bge	a0,zero,.L3
-	lla	a0,.LC1
+	lla	a0,.LC2
 .L11:
 	call	printf@plt
 	j	.L10
@@ -68,7 +73,7 @@ main:
 	ld	a0,16(s0)
 	call	exec@plt
 	ld	a1,16(s0)
-	lla	a0,.LC2
+	lla	a0,.LC3
 	call	printf@plt
 .L10:
 	li	a0,1
@@ -78,7 +83,7 @@ main:
 	call	wait@plt
 	beq	s1,a0,.L5
 	bge	a0,zero,.L4
-	lla	a0,.LC3
+	lla	a0,.LC4
 	j	.L11
 .L5:
 	addiw	s0,s0,1
@@ -88,98 +93,104 @@ main:
 	.globl	tests
 	.section	.rodata.str1.8
 	.align	3
-.LC4:
+.LC5:
 	.string	"brk"
 	.align	3
-.LC5:
+.LC6:
 	.string	"chdir"
 	.align	3
-.LC6:
+.LC7:
 	.string	"clone"
 	.align	3
-.LC7:
+.LC8:
 	.string	"close"
 	.align	3
-.LC8:
+.LC9:
 	.string	"dup"
 	.align	3
-.LC9:
+.LC10:
 	.string	"dup2"
 	.align	3
-.LC10:
+.LC11:
 	.string	"execve"
 	.align	3
-.LC11:
+.LC12:
 	.string	"exit"
 	.align	3
-.LC12:
+.LC13:
 	.string	"fork"
 	.align	3
-.LC13:
+.LC14:
 	.string	"fstat"
 	.align	3
-.LC14:
+.LC15:
 	.string	"getcwd"
 	.align	3
-.LC15:
+.LC16:
 	.string	"getdents"
 	.align	3
-.LC16:
+.LC17:
 	.string	"getpid"
 	.align	3
-.LC17:
+.LC18:
 	.string	"getppid"
 	.align	3
-.LC18:
+.LC19:
 	.string	"gettimeofday"
 	.align	3
-.LC19:
-	.string	"mkdir"
-	.align	3
 .LC20:
-	.string	"mmap"
+	.string	"mkdir_"
 	.align	3
 .LC21:
-	.string	"munmap"
+	.string	"mmap"
 	.align	3
 .LC22:
-	.string	"open"
+	.string	"mount"
 	.align	3
 .LC23:
-	.string	"openat"
+	.string	"munmap"
 	.align	3
 .LC24:
-	.string	"pipe"
+	.string	"open"
 	.align	3
 .LC25:
-	.string	"read"
+	.string	"openat"
 	.align	3
 .LC26:
-	.string	"sleep"
+	.string	"pipe"
 	.align	3
 .LC27:
-	.string	"times"
+	.string	"read"
 	.align	3
 .LC28:
-	.string	"uname"
+	.string	"sleep"
 	.align	3
 .LC29:
-	.string	"unlink"
+	.string	"times"
 	.align	3
 .LC30:
-	.string	"wait"
+	.string	"umount"
 	.align	3
 .LC31:
-	.string	"waitpid"
+	.string	"uname"
 	.align	3
 .LC32:
-	.string	"write"
+	.string	"unlink"
 	.align	3
 .LC33:
+	.string	"wait"
+	.align	3
+.LC34:
+	.string	"waitpid"
+	.align	3
+.LC35:
+	.string	"write"
+	.align	3
+.LC36:
 	.string	"yield"
 	.globl	argv
 	.align	3
-.LC34:
+.LC37:
 	.string	"sh"
 	.data
 	.align	2
@@ -187,19 +198,18 @@ main:
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	30
+	.word	32
 	.section	.data.rel.local,"aw"
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
 	.size	argv, 16
 argv:
-	.dword	.LC34
+	.dword	.LC37
 	.dword	0
 	.type	tests, @object
-	.size	tests, 240
+	.size	tests, 256
 tests:
-	.dword	.LC4
 	.dword	.LC5
 	.dword	.LC6
 	.dword	.LC7
@@ -229,5 +239,8 @@ tests:
 	.dword	.LC31
 	.dword	.LC32
 	.dword	.LC33
+	.dword	.LC34
+	.dword	.LC35
+	.dword	.LC36
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits

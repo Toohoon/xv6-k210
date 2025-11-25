@@ -24,7 +24,8 @@
 #define SYS_remove          25
 #define SYS_trace           18
 #define SYS_sysinfo         19
-#define SYS_mkdir           1030
+#define SYS_mkdir           34
+#define SYS_mkdirat         34
 #define SYS_close           57
 #define SYS_test_proc       22
 #define SYS_dev             10000
@@ -42,8 +43,9 @@
 #define SYS_clone           220
 #define SYS_waitpid         260
 #define SYS_getdents64      61
-#define SYS_mkdirat         34
 #define SYS_unlinkat        35
+#define SYS_umount2         39
+#define SYS_mount           40
 
 
 #endif
