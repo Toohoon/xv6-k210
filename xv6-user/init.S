@@ -145,52 +145,46 @@ main:
 	.string	"mmap"
 	.align	3
 .LC22:
-	.string	"mount"
-	.align	3
-.LC23:
 	.string	"munmap"
 	.align	3
-.LC24:
+.LC23:
 	.string	"open"
 	.align	3
-.LC25:
+.LC24:
 	.string	"openat"
 	.align	3
-.LC26:
+.LC25:
 	.string	"pipe"
 	.align	3
-.LC27:
+.LC26:
 	.string	"read"
 	.align	3
-.LC28:
+.LC27:
 	.string	"sleep"
 	.align	3
-.LC29:
+.LC28:
 	.string	"times"
 	.align	3
-.LC30:
-	.string	"umount"
-	.align	3
-.LC31:
+.LC29:
 	.string	"uname"
 	.align	3
-.LC32:
+.LC30:
 	.string	"unlink"
 	.align	3
-.LC33:
+.LC31:
 	.string	"wait"
 	.align	3
-.LC34:
+.LC32:
 	.string	"waitpid"
 	.align	3
-.LC35:
+.LC33:
 	.string	"write"
 	.align	3
-.LC36:
+.LC34:
 	.string	"yield"
 	.globl	argv
 	.align	3
-.LC37:
+.LC35:
 	.string	"sh"
 	.data
 	.align	2
@@ -198,17 +192,17 @@ main:
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	32
+	.word	30
 	.section	.data.rel.local,"aw"
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
 	.size	argv, 16
 argv:
-	.dword	.LC37
+	.dword	.LC35
 	.dword	0
 	.type	tests, @object
-	.size	tests, 256
+	.size	tests, 240
 tests:
 	.dword	.LC5
 	.dword	.LC6
@@ -240,7 +234,5 @@ tests:
 	.dword	.LC32
 	.dword	.LC33
 	.dword	.LC34
-	.dword	.LC35
-	.dword	.LC36
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits
