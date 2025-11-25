@@ -131,8 +131,8 @@ extern uint64 sys_dup3(void);
 extern uint64 sys_getdents64(void);
 extern uint64 sys_mkdirat(void);
 extern uint64 sys_unlinkat(void);
-extern uint64 sys_mount(void);
-extern uint64 sys_umount2(void);
+//extern uint64 sys_mount(void);
+//extern uint64 sys_umount2(void);
 
 
 static uint64 (*syscalls[])(void) = {
@@ -178,8 +178,8 @@ static uint64 (*syscalls[])(void) = {
   [SYS_getdents64] sys_getdents64,
   [SYS_mkdirat] sys_mkdirat,
   [SYS_unlinkat] sys_unlinkat,
-  [SYS_mount] sys_mount,
-  [SYS_umount2] sys_umount2,
+  //[SYS_mount] sys_mount,
+  //[SYS_umount2] sys_umount2,
 };
 static int syscall_counts[NELEM(syscalls)];
 static char *sysnames[] = {
@@ -225,8 +225,8 @@ static char *sysnames[] = {
   [SYS_getdents64] "getdents64",
   [SYS_mkdirat] "mkdirat",
   [SYS_unlinkat] "unlinkat",
-  [SYS_mount] "mount",
-  [SYS_umount2] "umount2",
+  //[SYS_mount] "mount",
+  //[SYS_umount2] "umount2",
 };
 
 void
