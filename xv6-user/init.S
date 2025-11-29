@@ -40,7 +40,7 @@ main:
 	lla	a0,.LC0
 	call	printf@plt
 	li	s0,0
-	lla	s2,.LANCHOR1
+	lla	s2,.LANCHOR2
 	lla	s3,.LC1
 .L2:
 	lw	a5,0(s2)
@@ -67,12 +67,13 @@ main:
 	j	.L10
 .L3:
 	bne	a0,zero,.L4
-	lla	a1,.LANCHOR0
+	lla	a5,.LANCHOR1
 	slli	s0,s0,3
-	add	s0,a1,s0
-	ld	a0,16(s0)
+	add	s0,a5,s0
+	ld	a0,0(s0)
+	lla	a1,.LANCHOR0
 	call	exec@plt
-	ld	a1,16(s0)
+	ld	a1,0(s0)
 	lla	a0,.LC3
 	call	printf@plt
 .L10:
@@ -145,64 +146,69 @@ main:
 	.string	"mmap"
 	.align	3
 .LC22:
-	.string	"munmap"
+	.string	"mount"
 	.align	3
 .LC23:
-	.string	"open"
+	.string	"munmap"
 	.align	3
 .LC24:
-	.string	"openat"
+	.string	"open"
 	.align	3
 .LC25:
-	.string	"pipe"
+	.string	"openat"
 	.align	3
 .LC26:
-	.string	"read"
+	.string	"pipe"
 	.align	3
 .LC27:
-	.string	"sleep"
+	.string	"read"
 	.align	3
 .LC28:
-	.string	"times"
+	.string	"sleep"
 	.align	3
 .LC29:
-	.string	"uname"
+	.string	"times"
 	.align	3
 .LC30:
-	.string	"unlink"
+	.string	"umount"
 	.align	3
 .LC31:
-	.string	"wait"
+	.string	"uname"
 	.align	3
 .LC32:
-	.string	"waitpid"
+	.string	"unlink"
 	.align	3
 .LC33:
-	.string	"write"
+	.string	"wait"
 	.align	3
 .LC34:
-	.string	"yield"
-	.globl	argv
+	.string	"waitpid"
 	.align	3
 .LC35:
-	.string	"sh"
+	.string	"write"
+	.align	3
+.LC36:
+	.string	"yield"
+	.globl	argv
 	.data
 	.align	2
-	.set	.LANCHOR1,. + 0
+	.set	.LANCHOR2,. + 0
 	.type	counts, @object
 	.size	counts, 4
 counts:
-	.word	30
-	.section	.data.rel.local,"aw"
+	.word	32
+	.bss
 	.align	3
 	.set	.LANCHOR0,. + 0
 	.type	argv, @object
-	.size	argv, 16
+	.size	argv, 8
 argv:
-	.dword	.LC35
-	.dword	0
+	.zero	8
+	.section	.data.rel.local,"aw"
+	.align	3
+	.set	.LANCHOR1,. + 0
 	.type	tests, @object
-	.size	tests, 240
+	.size	tests, 256
 tests:
 	.dword	.LC5
 	.dword	.LC6
@@ -234,5 +240,7 @@ tests:
 	.dword	.LC32
 	.dword	.LC33
 	.dword	.LC34
+	.dword	.LC35
+	.dword	.LC36
 	.ident	"GCC: (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0"
 	.section	.note.GNU-stack,"",@progbits

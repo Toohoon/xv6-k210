@@ -1,14 +1,13 @@
-// init: The initial user-level program
-
 #include "kernel/include/types.h"
 #include "kernel/include/stat.h"
 #include "kernel/include/file.h"
 #include "kernel/include/fcntl.h"
 #include "xv6-user/user.h"
 
-char *argv[] = { "sh", 0 };
+// char *argv[] = { "sh", 0 };
+char *argv[] = {0};
 char *tests[] = {
-   "brk",
+    "brk",
     "chdir",
     "clone",
     "close",
@@ -25,7 +24,7 @@ char *tests[] = {
     "gettimeofday",
     "mkdir_",
     "mmap",
-    //"mount",
+    "mount",
     "munmap",
     "open",
     "openat",
@@ -33,14 +32,14 @@ char *tests[] = {
     "read",
     "sleep",
     "times",
-    //"umount",
+    "umount",
     "uname",
     "unlink",
     "wait",
     "waitpid",
     "write",
     "yield",
-  };
+};
 int counts=sizeof(tests) / sizeof(tests[0]);
 int main(void)
 {
@@ -49,7 +48,6 @@ int main(void)
   dev(O_RDWR, CONSOLE, 0);
   dup(0); // stdout
   dup(0); // stderr
-  //shutdown();
   printf("Working Test!!\n");
   for (int i = 0; i < counts ; i++)
   {

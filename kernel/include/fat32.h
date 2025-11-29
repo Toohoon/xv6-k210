@@ -69,4 +69,16 @@ struct dirent*  enameparent(char *path, char *name);
 int             eread(struct dirent *entry, int user_dst, uint64 dst, uint off, uint n);
 int             ewrite(struct dirent *entry, int user_src, uint64 src, uint off, uint n);
 
+#define NMOUNT 16   // 挂载点最大数量，16 个够用了
+
+struct mount_entry {
+  int used;                         // 这个挂载槽是否在用
+  struct dirent *de;                // 挂载点目录的 dirent（edup 得到）
+  char path[FAT32_MAX_PATH];        // 挂载点的绝对路径字符串
+};
+
+// 这里只是“声明”，不要在头文件里定义数组本体！
+extern struct mount_entry mounts[NMOUNT];
+
+
 #endif
