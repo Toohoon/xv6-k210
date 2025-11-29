@@ -933,3 +933,38 @@ struct dirent *enameparent(char *path, char *name)
 {
     return lookup_path(path, 1, name);
 }
+void
+ekstat(struct dirent* de, struct kstat* st)
+{
+  memset(st, 0, sizeof(*st));
+
+  // 设备号：直接用 FAT32 dirent 里的 dev 字段
+  st->st_dev = de->dev;
+
+  // FAT32 没有真正的 inode 概念，置 0 即可
+  st->st_ino = 0;
+
+  // 文件类型：目录 or 普通文件
+  if (de->attribute & ATTR_DIRECTORY)
+    st->st_mode = DT_DIR;
+  else
+    st->st_mode = DT_REG;
+
+  // FAT32 不支持硬链接，简单写 1
+  st->st_nlink = 1;
+
+  st->st_uid = 0;    // 没有权限系统，全部置 0
+  st->st_gid = 0;
+  st->st_rdev = 0;
+
+  // 文件大小（字节）
+  st->st_size = de->file_size;
+
+  // 文件系统 I/O 最佳块大小：给个常用值 4096
+  st->st_blksize = 4096;
+
+  // 以 512B 为单位的块数：向上取整
+  st->st_blocks = (st->st_size + 511) / 512;
+
+  // [可选] atime/mtime/ctime 暂时都为 0，测试一般不看这些
+}

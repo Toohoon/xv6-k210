@@ -80,5 +80,7 @@ struct mount_entry {
 // 这里只是“声明”，不要在头文件里定义数组本体！
 extern struct mount_entry mounts[NMOUNT];
 
+void ekstat(struct dirent* de, struct kstat* st);
+
 
 #endif
